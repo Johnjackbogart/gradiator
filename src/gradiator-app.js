@@ -1,4 +1,3 @@
-import "./style.css";
 import { hexToRgb, hslToRgb, hsvToRgb, rgbToHex, rgbToHsv } from "./utils/color.js";
 import { bilerp, colorBilerp, inverseBilinear, mixPoint } from "./utils/interpolation.js";
 import { clamp, catmullRom, fract, lerp, normalizeVector } from "./utils/math.js";
@@ -1319,4 +1318,6 @@ class GradiatorApp {
   }
 }
 
-new GradiatorApp();
+export function bootGradiatorApp() {
+  return new GradiatorApp();
+}

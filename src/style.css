@@ -4,6 +4,13 @@
   box-sizing: border-box;
 }
 
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+}
+
 body {
   background: #0d0d0d;
   color: #fff;
@@ -52,8 +59,8 @@ body {
 
 #brand-mark {
   position: absolute;
-  top: max(6px, calc(var(--image-inset) - var(--brand-overhang)));
-  left: max(6px, calc(var(--image-inset) - var(--brand-overhang)));
+  top: max(20px, calc(var(--image-inset) - var(--brand-overhang)));
+  left: max(20px, calc(var(--image-inset) - var(--brand-overhang)));
   z-index: 14;
   padding: 10px 12px;
   border-radius: var(--ui-radius);
