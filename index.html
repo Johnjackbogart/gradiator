@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gradiator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@700;800&family=Space+Grotesk:wght@700&display=swap"
+      rel="stylesheet"
+    />
+    <script type="module" src="/src/main.js"></script>
+  </head>
+  <body>
+    <div id="canvas-container">
+      <div id="image-stage">
+        <canvas id="gl-canvas"></canvas>
+        <canvas id="overlay-canvas"></canvas>
+      </div>
+      <div id="hint">Drag to warp · Click point for color · Double-click canvas to add a point</div>
+      <div class="logo" id="brand-mark" aria-label="Gradiator">
+        <span class="logo-ibm">Gradi</span><span class="logo-space">ator</span>
+      </div>
+      <div id="ui-controls">
+        <button class="btn panel-handle" id="btn-ui-move" type="button" aria-label="Move UI controls">✋</button>
+        <div class="ui-buttons">
+          <button class="btn" id="btn-ui" type="button" aria-pressed="false">Hide UI</button>
+          <button class="btn" id="btn-border" type="button" aria-pressed="false">Hide Border</button>
+        </div>
+      </div>
+      <div id="toolbar">
+        <button class="btn panel-handle" id="btn-toolbar-move" type="button" aria-label="Move toolbar">✋</button>
+        <div class="toolbar-content">
+          <div class="toolbar-controls">
+            <button class="btn active" id="btn-grid">⊞ Grid</button>
+            <button class="btn active" id="btn-flow">Flow: Fluid</button>
+            <button class="btn" id="btn-randomize">↻ Randomize</button>
+            <button class="btn" id="btn-color">🎨 Color</button>
+            <button class="btn" id="btn-export">↓ Export PNG</button>
+          </div>
+        </div>
+      </div>
+      <div id="preview-frame" aria-hidden="true">
+        <button class="btn" id="btn-move" aria-label="Move preview">✋</button>
+        <button class="btn" id="btn-view" aria-label="Toggle full view">⤢</button>
+        <canvas id="preview-canvas" width="640" height="400"></canvas>
+      </div>
+    </div>
+
+    <div id="cp-panel">
+      <div id="cp-sv-wrap">
+        <canvas id="cp-sv-canvas" width="200" height="164"></canvas>
+        <div id="cp-sv-cursor"></div>
+      </div>
+      <input type="range" id="cp-hue" min="0" max="360" step="0.5" value="0" />
+      <div id="cp-bottom">
+        <div id="cp-swatch"></div>
+        <input type="text" id="cp-hex" maxlength="7" spellcheck="false" placeholder="#000000" />
+      </div>
+    </div>
+  </body>
+</html>
