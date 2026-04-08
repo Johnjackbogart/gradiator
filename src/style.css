@@ -21,6 +21,8 @@ body {
   --image-inset: 10px;
   --image-inset-double: 20px;
   --brand-overhang: 14px;
+  --panel-surface-bg: rgba(8, 8, 8, 0.62);
+  --panel-surface-blur: blur(1px);
 }
 
 #toolbar {
@@ -64,12 +66,12 @@ body {
   z-index: 14;
   padding: 10px 12px;
   border-radius: var(--ui-radius);
-  background: rgba(8, 8, 8, 0.62);
+  background: var(--panel-surface-bg);
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow:
     0 14px 30px rgba(0, 0, 0, 0.28),
     inset 0 0 0 1px rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(1px);
+  backdrop-filter: var(--panel-surface-blur);
 }
 
 #ui-controls {
@@ -82,10 +84,10 @@ body {
   gap: 8px;
   padding: 8px;
   border-radius: var(--ui-radius);
-  background: transparent;
+  background: var(--panel-surface-bg);
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: none;
-  backdrop-filter: blur(1px);
+  backdrop-filter: var(--panel-surface-blur);
 }
 
 .ui-buttons {
@@ -325,7 +327,7 @@ body.preview-full #preview-canvas {
 
 #hint {
   position: absolute;
-  top: max(6px, calc(var(--image-inset) - 12px));
+  top: max(15px, calc(var(--image-inset) - 12px));
   left: 50%;
   transform: translateX(-50%);
   z-index: 13;

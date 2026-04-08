@@ -251,18 +251,15 @@ class GradiatorApp {
   }
 
   initPoints() {
-    const TL = hslToRgb(240, 80, 38);
-    const TR = hslToRgb(315, 85, 48);
-    const BL = hslToRgb(185, 75, 38);
-    const BR = hslToRgb(32, 90, 52);
+    const grayscaleStops = [0.04, 0.16, 0.32, 0.48, 0.64, 0.8, 0.96];
     this.grid = [];
     for (let row = 0; row < this.ROWS; row++) {
       const r = [];
       for (let col = 0; col < this.COLS; col++) {
         const u = col / (this.COLS - 1);
         const v = row / (this.ROWS - 1);
-        const c = colorBilerp(TL, TR, BL, BR, u, v);
-        r.push({ x: u, y: v, r: c.r, g: c.g, b: c.b });
+        const shade = grayscaleStops[Math.floor(Math.random() * grayscaleStops.length)];
+        r.push({ x: u, y: v, r: shade, g: shade, b: shade });
       }
       this.grid.push(r);
     }
