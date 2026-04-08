@@ -1,183 +1,10 @@
 import "./style.css";
-
-function lerp(a, b, t) {
-  return a + (b - a) * t;
-}
-
-function bilerp(tl, tr, bl, br, u, v) {
-  const h = (a, b) => lerp(a, b, u);
-  return {
-    x: lerp(h(tl.x, tr.x), h(bl.x, br.x), v),
-    y: lerp(h(tl.y, tr.y), h(bl.y, br.y), v),
-    r: lerp(h(tl.r, tr.r), h(bl.r, br.r), v),
-    g: lerp(h(tl.g, tr.g), h(bl.g, br.g), v),
-    b: lerp(h(tl.b, tr.b), h(bl.b, br.b), v),
-  };
-}
-
-function colorBilerp(tl, tr, bl, br, u, v) {
-  return {
-    r: lerp(lerp(tl.r, tr.r, u), lerp(bl.r, br.r, u), v),
-    g: lerp(lerp(tl.g, tr.g, u), lerp(bl.g, br.g, u), v),
-    b: lerp(lerp(tl.b, tr.b, u), lerp(bl.b, br.b, u), v),
-  };
-}
-
-function clamp(v, min, max) {
-  return Math.max(min, Math.min(max, v));
-}
-
-function catmullRom(p0, p1, p2, p3, t) {
-  const t2 = t * t;
-  const t3 = t2 * t;
-  return 0.5 * (
-    (2 * p1) +
-    (-p0 + p2) * t +
-    (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 +
-    (-p0 + 3 * p1 - 3 * p2 + p3) * t3
-  );
-}
-
-function mixPoint(a, b, t) {
-  return {
-    x: lerp(a.x, b.x, t),
-    y: lerp(a.y, b.y, t),
-    r: lerp(a.r, b.r, t),
-    g: lerp(a.g, b.g, t),
-    b: lerp(a.b, b.b, t),
-  };
-}
-
-function fract(v) {
-  return v - Math.floor(v);
-}
-
-function smoothstep01(t) {
-  return t * t * (3 - 2 * t);
-}
-
-function normalizeVector(du, dv, fallback = { du: 1, dv: 0 }) {
-  const len = Math.hypot(du, dv);
-  if (len < 1e-6) {
-    if (!fallback) return null;
-    const fallbackLen = Math.hypot(fallback.du, fallback.dv);
-    if (fallbackLen < 1e-6) return null;
-    return { du: fallback.du / fallbackLen, dv: fallback.dv / fallbackLen };
-  }
-  return { du: du / len, dv: dv / len };
-}
-
-function hash2(x, y) {
-  return fract(Math.sin(x * 127.1 + y * 311.7) * 43758.5453123);
-}
-
-function valueNoise2D(x, y) {
-  const ix = Math.floor(x);
-  const iy = Math.floor(y);
-  const fx = smoothstep01(x - ix);
-  const fy = smoothstep01(y - iy);
-  const v00 = hash2(ix, iy);
-  const v10 = hash2(ix + 1, iy);
-  const v01 = hash2(ix, iy + 1);
-  const v11 = hash2(ix + 1, iy + 1);
-  return lerp(lerp(v00, v10, fx), lerp(v01, v11, fx), fy);
-}
-
-function fractalNoise2D(x, y, octaves = 2) {
-  let total = 0;
-  let amplitude = 0.6;
-  let frequency = 1;
-  let weight = 0;
-  for (let i = 0; i < octaves; i++) {
-    total += valueNoise2D(x * frequency, y * frequency) * amplitude;
-    weight += amplitude;
-    amplitude *= 0.5;
-    frequency *= 2.07;
-  }
-  return weight > 0 ? total / weight : 0;
-}
-
-function encodeUrlState(value) {
-  return btoa(JSON.stringify(value)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
-}
-
-function decodeUrlState(value) {
-  const base64 = value.replace(/-/g, "+").replace(/_/g, "/");
-  const padding = (4 - (base64.length % 4)) % 4;
-  return JSON.parse(atob(base64 + "=".repeat(padding)));
-}
-
-function hexToRgb(hex) {
-  return {
-    r: parseInt(hex.slice(1, 3), 16) / 255,
-    g: parseInt(hex.slice(3, 5), 16) / 255,
-    b: parseInt(hex.slice(5, 7), 16) / 255,
-  };
-}
-
-function rgbToHex(r, g, b) {
-  const h = (v) => Math.round(Math.max(0, Math.min(1, v)) * 255).toString(16).padStart(2, "0");
-  return "#" + h(r) + h(g) + h(b);
-}
-
-function hslToRgb(h, s, l) {
-  s /= 100;
-  l /= 100;
-  const a = s * Math.min(l, 1 - l);
-  const f = (n) => {
-    const k = (n + h / 30) % 12;
-    return l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1));
-  };
-  return { r: f(0), g: f(8), b: f(4) };
-}
-
-function rgbToHsv(r, g, b) {
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  const d = max - min;
-  let h = 0;
-  if (d !== 0) {
-    switch (max) {
-      case r:
-        h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
-        break;
-      case g:
-        h = ((b - r) / d + 2) / 6;
-        break;
-      case b:
-        h = ((r - g) / d + 4) / 6;
-        break;
-    }
-  }
-  return { h: h * 360, s: max === 0 ? 0 : d / max, v: max };
-}
-
-function hsvToRgb(h, s, v) {
-  h /= 360;
-  const i = Math.floor(h * 6);
-  const f = h * 6 - i;
-  const p = v * (1 - s);
-  const q = v * (1 - f * s);
-  const t = v * (1 - (1 - f) * s);
-  const c = [[v, t, p], [q, v, p], [p, v, t], [p, q, v], [t, p, v], [v, p, q]][i % 6];
-  return { r: c[0], g: c[1], b: c[2] };
-}
-
-function compileShader(gl, type, src) {
-  const s = gl.createShader(type);
-  gl.shaderSource(s, src);
-  gl.compileShader(s);
-  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(s));
-  return s;
-}
-
-function createProgram(gl, vs, fs) {
-  const p = gl.createProgram();
-  gl.attachShader(p, compileShader(gl, gl.VERTEX_SHADER, vs));
-  gl.attachShader(p, compileShader(gl, gl.FRAGMENT_SHADER, fs));
-  gl.linkProgram(p);
-  return p;
-}
+import { hexToRgb, hslToRgb, hsvToRgb, rgbToHex, rgbToHsv } from "./utils/color.js";
+import { bilerp, colorBilerp, inverseBilinear, mixPoint } from "./utils/interpolation.js";
+import { clamp, catmullRom, fract, lerp, normalizeVector } from "./utils/math.js";
+import { fractalNoise2D } from "./utils/noise.js";
+import { decodeUrlState, encodeUrlState } from "./utils/url-state.js";
+import { createProgram } from "./utils/webgl.js";
 
 class ColorPicker {
   constructor(onChange) {
@@ -782,37 +609,6 @@ class GradiatorApp {
     return { r: p.r, g: p.g, b: p.b };
   }
 
-  inverseBilinear(target, tl, tr, bl, br) {
-    const bx = tr.x - tl.x;
-    const by = tr.y - tl.y;
-    const cx = bl.x - tl.x;
-    const cy = bl.y - tl.y;
-    const dx = tl.x - tr.x - bl.x + br.x;
-    const dy = tl.y - tr.y - bl.y + br.y;
-    let u = 0.5;
-    let v = 0.5;
-
-    for (let i = 0; i < 10; i++) {
-      const fx = tl.x + bx * u + cx * v + dx * u * v - target.x;
-      const fy = tl.y + by * u + cy * v + dy * u * v - target.y;
-      const j00 = bx + dx * v;
-      const j01 = cx + dx * u;
-      const j10 = by + dy * v;
-      const j11 = cy + dy * u;
-      const det = j00 * j11 - j01 * j10;
-      if (Math.abs(det) < 1e-8) break;
-      const du = (fx * j11 - fy * j01) / det;
-      const dv = (fy * j00 - fx * j10) / det;
-      u -= du;
-      v -= dv;
-      if (du * du + dv * dv < 1e-10) break;
-    }
-
-    const projected = bilerp(tl, tr, bl, br, u, v);
-    const error = (projected.x - target.x) ** 2 + (projected.y - target.y) ** 2;
-    return { u, v, error, projected };
-  }
-
   findCellAt(u, v) {
     let best = null;
     const target = { x: u, y: v };
@@ -824,7 +620,7 @@ class GradiatorApp {
         const tr = this.pt(row, col + 1);
         const bl = this.pt(row + 1, col);
         const br = this.pt(row + 1, col + 1);
-        const local = this.inverseBilinear(target, tl, tr, bl, br);
+        const local = inverseBilinear(target, tl, tr, bl, br);
         const inside =
           local.u >= -tolerance &&
           local.u <= 1 + tolerance &&
