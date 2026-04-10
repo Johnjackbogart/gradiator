@@ -5,6 +5,7 @@ type ToolbarProps = {
   moveButtonRef: RefObject<HTMLButtonElement | null>;
   gridButtonRef: RefObject<HTMLButtonElement | null>;
   flowButtonRef: RefObject<HTMLButtonElement | null>;
+  aspectButtonRef: RefObject<HTMLButtonElement | null>;
   randomizeButtonRef: RefObject<HTMLButtonElement | null>;
   colorButtonRef: RefObject<HTMLButtonElement | null>;
   exportButtonRef: RefObject<HTMLButtonElement | null>;
@@ -15,6 +16,7 @@ export function Toolbar({
   moveButtonRef,
   gridButtonRef,
   flowButtonRef,
+  aspectButtonRef,
   randomizeButtonRef,
   colorButtonRef,
   exportButtonRef,
@@ -37,6 +39,9 @@ export function Toolbar({
           </button>
           <button className="btn active" id="btn-flow" type="button" ref={flowButtonRef}>
             Flow: Fluid
+          </button>
+          <button className="btn active" id="btn-aspect" type="button" ref={aspectButtonRef}>
+            Aspect: Browser
           </button>
           <button className="btn" id="btn-randomize" type="button" ref={randomizeButtonRef}>
             ↻ Randomize

@@ -294,7 +294,10 @@ body {
 
 #image-stage {
   position: absolute;
-  inset: var(--image-inset);
+  left: var(--image-inset);
+  top: var(--image-inset);
+  width: calc(100% - var(--image-inset-double));
+  height: calc(100% - var(--image-inset-double));
 }
 
 #image-stage canvas {
@@ -316,7 +319,7 @@ body {
   right: 16px;
   z-index: 12;
   width: min(34vw, 320px);
-  aspect-ratio: 16 / 10;
+  aspect-ratio: var(--preview-frame-aspect, 16 / 10);
   padding: 0;
   border-radius: var(--ui-radius);
   background: rgba(10, 10, 12, 0.72);

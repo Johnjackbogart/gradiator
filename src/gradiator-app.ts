@@ -32,6 +32,12 @@ type FlowMode = {
   steps?: number;
 };
 
+type AspectMode = {
+  key: "square" | "classic" | "widescreen" | "browser";
+  label: "1:1" | "4:3" | "16:9" | "Browser";
+  ratio: number | null;
+};
+
 type FlowRuntime = {
   center: Point2D;
   attractor: Point2D;
@@ -96,6 +102,7 @@ export type GradiatorAppElements = {
   uiToggleButton: HTMLButtonElement;
   gridButton: HTMLButtonElement;
   flowButton: HTMLButtonElement;
+  aspectButton: HTMLButtonElement;
   colorButton: HTMLButtonElement;
   randomizeButton: HTMLButtonElement;
   exportButton: HTMLButtonElement;
@@ -304,6 +311,7 @@ class GradiatorApp {
   readonly uiToggleButton: HTMLButtonElement;
   readonly gridButton: HTMLButtonElement;
   readonly flowButton: HTMLButtonElement;
+  readonly aspectButton: HTMLButtonElement;
   readonly colorButton: HTMLButtonElement;
   readonly randomizeButton: HTMLButtonElement;
   readonly exportButton: HTMLButtonElement;
@@ -320,6 +328,12 @@ class GradiatorApp {
       { label: "Attractor", blend: 0.9, kind: "advect", field: "attractor", strength: 0.16, steps: 3 },
       { label: "Turbulence", blend: 1, kind: "advect", field: "turbulence", strength: 0.1, steps: 2 },
     ];
+  readonly aspectModes: AspectMode[] = [
+      { key: "square", label: "1:1", ratio: 1 },
+      { key: "classic", label: "4:3", ratio: 4 / 3 },
+      { key: "widescreen", label: "16:9", ratio: 16 / 9 },
+      { key: "browser", label: "Browser", ratio: null },
+    ];
   readonly resizeObserver: ResizeObserver;
   gl!: WebGLRenderingContext;
   prog!: WebGLProgram;
@@ -334,6 +348,7 @@ class GradiatorApp {
   showGrid = true;
   fullView = false;
   flowModeIndex = 2;
+  aspectModeIndex = 3;
   flowBlend = this.flowModes[this.flowModeIndex].blend;
   lastSerializedState = "";
   grid: GradientPoint[][] = [];
@@ -372,6 +387,7 @@ class GradiatorApp {
     this.uiToggleButton = elements.uiToggleButton;
     this.gridButton = elements.gridButton;
     this.flowButton = elements.flowButton;
+    this.aspectButton = elements.aspectButton;
     this.colorButton = elements.colorButton;
     this.randomizeButton = elements.randomizeButton;
     this.exportButton = elements.exportButton;
@@ -419,6 +435,7 @@ class GradiatorApp {
     this.initGL();
     this.initPoints();
     this.restoreStateFromUrl();
+    this.applyAspectMode(this.aspectModeIndex);
     this.setupEvents();
     this.setupButtons();
     this.resize();
@@ -478,6 +495,34 @@ class GradiatorApp {
 
   currentFlowMode() {
     return this.flowModes[this.flowModeIndex] || this.flowModes[0];
+  }
+
+  currentAspectMode() {
+    return this.aspectModes[this.aspectModeIndex] || this.aspectModes[this.aspectModes.length - 1];
+  }
+
+  applyAspectMode(index, shouldResize = false) {
+    const safeIndex = clamp(index, 0, this.aspectModes.length - 1);
+    this.aspectModeIndex = safeIndex;
+    const mode = this.currentAspectMode();
+    if (this.aspectButton) this.aspectButton.textContent = `Aspect: ${mode.label}`;
+    if (shouldResize) this.resize();
+  }
+
+  cycleAspectMode() {
+    this.applyAspectMode((this.aspectModeIndex + 1) % this.aspectModes.length, true);
+  }
+
+  findAspectModeIndex(key) {
+    return this.aspectModes.findIndex((mode) => mode.key === key);
+  }
+
+  getCurrentAspectRatio() {
+    const mode = this.currentAspectMode();
+    if (mode.ratio !== null) return mode.ratio;
+    const width = Math.max(1, this.container.clientWidth || window.innerWidth || 1);
+    const height = Math.max(1, this.container.clientHeight || window.innerHeight || 1);
+    return width / height;
   }
 
   averageColumn(col) {
@@ -563,10 +608,11 @@ class GradiatorApp {
 
   serializeState() {
     return encodeUrlState({
-      v: 1,
+      v: 2,
       rows: this.ROWS,
       cols: this.COLS,
       flow: this.flowModeIndex,
+      aspect: this.currentAspectMode().key,
       points: this.grid.flatMap((row) =>
         row.flatMap((p) => [
           this.roundStateValue(p.x),
@@ -597,6 +643,8 @@ class GradiatorApp {
       const rows = state?.rows;
       const cols = state?.cols;
       const points = state?.points;
+      const aspectModeIndex =
+        typeof state?.aspect === "string" ? this.findAspectModeIndex(state.aspect) : -1;
       if (!Number.isInteger(rows) || !Number.isInteger(cols) || rows < 2 || cols < 2) return;
       if (!Array.isArray(points) || points.length !== rows * cols * 5) return;
 
@@ -625,6 +673,7 @@ class GradiatorApp {
       this.ROWS = rows;
       this.COLS = cols;
       this.grid = grid;
+      if (aspectModeIndex >= 0) this.aspectModeIndex = aspectModeIndex;
       this.applyFlowMode(Number.isInteger(state.flow) ? state.flow : this.flowModeIndex);
       this.lastSerializedState = encoded;
     } catch (error) {
@@ -1141,8 +1190,40 @@ class GradiatorApp {
     }
   }
 
+  getImageInset() {
+    const inset = parseFloat(getComputedStyle(document.body).getPropertyValue("--image-inset"));
+    return Number.isFinite(inset) ? inset : 0;
+  }
+
+  layoutImageStage() {
+    const containerWidth = Math.max(1, this.container.clientWidth);
+    const containerHeight = Math.max(1, this.container.clientHeight);
+    const inset = this.getImageInset();
+    const availableWidth = Math.max(1, containerWidth - inset * 2);
+    const availableHeight = Math.max(1, containerHeight - inset * 2);
+    const aspectRatio = this.getCurrentAspectRatio();
+
+    let stageWidth = availableWidth;
+    let stageHeight = stageWidth / aspectRatio;
+
+    if (stageHeight > availableHeight) {
+      stageHeight = availableHeight;
+      stageWidth = stageHeight * aspectRatio;
+    }
+
+    const left = (containerWidth - stageWidth) / 2;
+    const top = (containerHeight - stageHeight) / 2;
+
+    this.imageStage.style.left = `${left}px`;
+    this.imageStage.style.top = `${top}px`;
+    this.imageStage.style.width = `${stageWidth}px`;
+    this.imageStage.style.height = `${stageHeight}px`;
+    this.previewFrame.style.setProperty("--preview-frame-aspect", `${stageWidth} / ${stageHeight}`);
+  }
+
   resize() {
     const container = this.container;
+    this.layoutImageStage();
     this.W = this.imageStage.clientWidth;
     this.H = this.imageStage.clientHeight;
     const dpr = window.devicePixelRatio || 1;
@@ -1345,6 +1426,10 @@ class GradiatorApp {
     this.cycleFlowMode();
   };
 
+  _onAspectButtonClick = () => {
+    this.cycleAspectMode();
+  };
+
   _onRandomizeButtonClick = () => {
     this.randomizeColors();
   };
@@ -1372,6 +1457,7 @@ class GradiatorApp {
     this.borderToggleButton.addEventListener("click", this._onBorderToggleClick);
     this.uiToggleButton.addEventListener("click", this._onUiToggleClick);
     this.flowButton.addEventListener("click", this._onFlowButtonClick);
+    this.aspectButton.addEventListener("click", this._onAspectButtonClick);
     this.randomizeButton.addEventListener("click", this._onRandomizeButtonClick);
     this.colorButton.addEventListener("click", this._onColorButtonClick);
     this.previewViewBtn.addEventListener("click", this._onPreviewViewClick);
@@ -1582,6 +1668,7 @@ class GradiatorApp {
     this.borderToggleButton.removeEventListener("click", this._onBorderToggleClick);
     this.uiToggleButton.removeEventListener("click", this._onUiToggleClick);
     this.flowButton.removeEventListener("click", this._onFlowButtonClick);
+    this.aspectButton.removeEventListener("click", this._onAspectButtonClick);
     this.randomizeButton.removeEventListener("click", this._onRandomizeButtonClick);
     this.colorButton.removeEventListener("click", this._onColorButtonClick);
     this.previewViewBtn.removeEventListener("click", this._onPreviewViewClick);
