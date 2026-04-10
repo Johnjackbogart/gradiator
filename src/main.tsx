@@ -1,8 +1,6 @@
 import "./style.css";
 import { createRoot } from "react-dom/client";
-import { flushSync } from "react-dom";
 import { App } from "./App";
-import { bootGradiatorApp } from "./gradiator-app.js";
 
 const root = document.getElementById("root");
 
@@ -12,8 +10,4 @@ if (!root) {
 
 const appRoot = createRoot(root);
 
-flushSync(() => {
-  appRoot.render(<App />);
-});
-
-bootGradiatorApp();
+appRoot.render(<App />);

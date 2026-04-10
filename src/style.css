@@ -46,32 +46,137 @@ body {
 }
 
 .logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 20px;
   font-family:
-    "Archivo Black",
+    "Roboto",
     -apple-system,
     BlinkMacSystemFont,
     "Segoe UI",
     sans-serif;
-  font-weight: 400;
-  font-size: 45px;
-  letter-spacing: 0.12em;
+  font-weight: 100;
+  font-size: 25px;
+  letter-spacing: 0.01em;
   color: rgba(255, 255, 255, 0.85);
   white-space: nowrap;
+  line-height: 1;
+}
+
+.brand-title-group {
+  position: relative;
+  grid-column: 2;
+  justify-self: center;
+  justify-content: center;
+}
+
+.logo-icon {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  display: block;
+}
+
+.logo-symbol {
+  display: flex;
+  grid-column: 1;
+  justify-self: start;
+  align-items: center;
+  padding: 8px;
+  border-radius: 3px;
+  background: #fff;
+  border: 0.25px solid #c01616;
+  box-shadow:
+    0 14px 30px rgba(0, 0, 0, 0.28),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+}
+
+.logo-text {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 10px;
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.92);
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.92);
+  box-shadow:
+    0 14px 30px rgba(0, 0, 0, 0.28),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.logo-help {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.logo-help-button {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.92);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
+}
+
+.logo-help-button:hover,
+.logo-help-button:focus-visible,
+.logo-help-button[aria-expanded="true"] {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: #fff;
+  color: #fff;
+  outline: none;
+}
+
+.logo-tooltip {
+  position: absolute;
+  top: 50%;
+  left: calc(100% + 12px);
+  z-index: 20;
+  width: min(280px, calc(100vw - 32px));
+  padding: 10px 12px;
+  border-radius: var(--ui-radius);
+  background: rgba(8, 8, 8, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow:
+    0 14px 30px rgba(0, 0, 0, 0.28),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(6px);
+  transform: translateY(-50%);
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.45;
+  letter-spacing: 0.02em;
+  white-space: normal;
 }
 
 #brand-mark {
   position: absolute;
-  top: max(20px, calc(var(--image-inset) - var(--brand-overhang)));
-  left: max(20px, calc(var(--image-inset) - var(--brand-overhang)));
+  top: 20px;
+  left: 0;
+  right: 0;
   z-index: 14;
-  padding: 10px 12px;
-  border-radius: var(--ui-radius);
-  background: var(--panel-surface-bg);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow:
-    0 14px 30px rgba(0, 0, 0, 0.28),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.03);
-  backdrop-filter: var(--panel-surface-blur);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: start;
+  padding-inline: max(20px, calc(var(--image-inset) - var(--brand-overhang)));
 }
 
 #ui-controls {
@@ -283,8 +388,7 @@ body.preview-full #canvas-container {
 }
 
 body.preview-full #gl-canvas,
-body.preview-full #overlay-canvas,
-body.preview-full #hint {
+body.preview-full #overlay-canvas {
   opacity: 0;
   pointer-events: none;
 }
@@ -325,32 +429,15 @@ body.preview-full #preview-canvas {
   border-radius: var(--ui-radius);
 }
 
-#hint {
-  position: absolute;
-  top: max(15px, calc(var(--image-inset) - 12px));
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 13;
-  max-width: calc(100vw - 360px);
-  padding: 6px 10px;
-  border-radius: var(--ui-radius);
-  background: rgba(8, 8, 8, 0.62);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(1px);
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.72);
-  pointer-events: none;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  letter-spacing: 0.04em;
-  transition: opacity 0.4s;
-}
-
 @media (max-width: 720px) {
   #brand-mark {
-    top: max(6px, calc(var(--image-inset) - var(--brand-overhang)));
-    left: max(6px, calc(var(--image-inset) - var(--brand-overhang)));
+    top: max(6px, calc(var(--image-inset) - 12px));
+    padding-inline: max(6px, calc(var(--image-inset) - var(--brand-overhang)));
+  }
+
+  .logo-tooltip {
+    left: calc(100% + 8px);
+    width: min(260px, calc(100vw - 24px));
   }
 
   #ui-controls {
@@ -379,14 +466,6 @@ body.preview-full #preview-canvas {
     right: 12px;
     bottom: 12px;
     width: min(42vw, 260px);
-  }
-
-  #hint {
-    top: max(6px, calc(var(--image-inset) - 12px));
-    max-width: calc(100vw - 120px);
-    white-space: normal;
-    overflow: visible;
-    text-overflow: clip;
   }
 }
 

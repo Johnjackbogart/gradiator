@@ -5,22 +5,141 @@ import { fractalNoise2D } from "./utils/noise.js";
 import { decodeUrlState, encodeUrlState } from "./utils/url-state.js";
 import { createProgram } from "./utils/webgl.js";
 
+type GradientPoint = {
+  x: number;
+  y: number;
+  r: number;
+  g: number;
+  b: number;
+};
+
+type GridIndex = {
+  row: number;
+  col: number;
+};
+
+type Point2D = {
+  x: number;
+  y: number;
+};
+
+type FlowMode = {
+  label: string;
+  blend: number;
+  kind: "blend" | "advect";
+  field?: "directional" | "radial" | "swirl" | "attractor" | "turbulence";
+  strength?: number;
+  steps?: number;
+};
+
+type FlowRuntime = {
+  center: Point2D;
+  attractor: Point2D;
+  direction: { du: number; dv: number };
+  normal: { du: number; dv: number };
+  noiseScale: number;
+  noiseOffsetX: number;
+  noiseOffsetY: number;
+};
+
+type FlowLinePoint = Point2D;
+
+type FlowGridLines = {
+  along: FlowLinePoint[][];
+  across: FlowLinePoint[][];
+};
+
+type PanelDragState = {
+  element: HTMLDivElement;
+  handle: HTMLButtonElement;
+  offsetX: number;
+  offsetY: number;
+};
+
+type PreviewDragState = {
+  offsetX: number;
+  offsetY: number;
+  container: HTMLDivElement;
+};
+
+type DockedStyle = {
+  left: string;
+  top: string;
+  right: string;
+  bottom: string;
+};
+
+type ColorPickerElements = {
+  panel: HTMLDivElement;
+  svWrap: HTMLDivElement;
+  svCanvas: HTMLCanvasElement;
+  svCursor: HTMLDivElement;
+  hueSlider: HTMLInputElement;
+  hexInput: HTMLInputElement;
+  swatch: HTMLDivElement;
+};
+
+export type GradiatorAppElements = {
+  container: HTMLDivElement;
+  imageStage: HTMLDivElement;
+  glCanvas: HTMLCanvasElement;
+  overlayCanvas: HTMLCanvasElement;
+  previewCanvas: HTMLCanvasElement;
+  uiControls: HTMLDivElement;
+  uiMoveButton: HTMLButtonElement;
+  toolbar: HTMLDivElement;
+  toolbarMoveButton: HTMLButtonElement;
+  previewFrame: HTMLDivElement;
+  previewMoveButton: HTMLButtonElement;
+  previewViewButton: HTMLButtonElement;
+  borderToggleButton: HTMLButtonElement;
+  uiToggleButton: HTMLButtonElement;
+  gridButton: HTMLButtonElement;
+  flowButton: HTMLButtonElement;
+  colorButton: HTMLButtonElement;
+  randomizeButton: HTMLButtonElement;
+  exportButton: HTMLButtonElement;
+  colorPickerPanel: HTMLDivElement;
+  colorPickerSvWrap: HTMLDivElement;
+  colorPickerSvCanvas: HTMLCanvasElement;
+  colorPickerSvCursor: HTMLDivElement;
+  colorPickerHue: HTMLInputElement;
+  colorPickerHex: HTMLInputElement;
+  colorPickerSwatch: HTMLDivElement;
+};
+
 class ColorPicker {
-  constructor(onChange) {
+  readonly onChange: (r: number, g: number, b: number) => void;
+  h = 0;
+  s = 1;
+  v = 1;
+  visible = false;
+  svDragging = false;
+  readonly panel: HTMLDivElement;
+  readonly svWrap: HTMLDivElement;
+  readonly svCanvas: HTMLCanvasElement;
+  readonly svCtx: CanvasRenderingContext2D;
+  readonly svCursor: HTMLDivElement;
+  readonly hueSlider: HTMLInputElement;
+  readonly hexInput: HTMLInputElement;
+  readonly swatch: HTMLDivElement;
+
+  constructor(elements: ColorPickerElements, onChange: (r: number, g: number, b: number) => void) {
     this.onChange = onChange;
-    this.h = 0;
-    this.s = 1;
-    this.v = 1;
-    this.visible = false;
-    this.svDragging = false;
-    this.panel = document.getElementById("cp-panel");
-    this.svWrap = document.getElementById("cp-sv-wrap");
-    this.svCanvas = document.getElementById("cp-sv-canvas");
-    this.svCtx = this.svCanvas.getContext("2d");
-    this.svCursor = document.getElementById("cp-sv-cursor");
-    this.hueSlider = document.getElementById("cp-hue");
-    this.hexInput = document.getElementById("cp-hex");
-    this.swatch = document.getElementById("cp-swatch");
+    this.panel = elements.panel;
+    this.svWrap = elements.svWrap;
+    this.svCanvas = elements.svCanvas;
+    this.svCursor = elements.svCursor;
+    this.hueSlider = elements.hueSlider;
+    this.hexInput = elements.hexInput;
+    this.swatch = elements.swatch;
+
+    const svCtx = this.svCanvas.getContext("2d");
+    if (!svCtx) {
+      throw new Error("Missing color picker canvas context");
+    }
+    this.svCtx = svCtx;
+
     this._bind();
   }
 
@@ -53,7 +172,7 @@ class ColorPicker {
   _refreshAll() {
     this._drawSV();
     this._placeCursor();
-    this.hueSlider.value = this.h;
+    this.hueSlider.value = String(this.h);
     this._syncBottom();
   }
 
@@ -101,75 +220,97 @@ class ColorPicker {
     this._emit();
   }
 
-  _bind() {
-    this.svWrap.addEventListener("mousedown", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      this.svDragging = true;
-      this._setSVFromClient(e.clientX, e.clientY);
-    });
-    window.addEventListener("mousemove", (e) => {
-      if (this.svDragging) this._setSVFromClient(e.clientX, e.clientY);
-    });
-    window.addEventListener("mouseup", () => {
-      this.svDragging = false;
-    });
-    this.hueSlider.addEventListener("input", (e) => {
-      this.h = parseFloat(e.target.value);
+  destroy() {
+    this.svDragging = false;
+    this.svWrap.removeEventListener("mousedown", this._onSvWrapMouseDown);
+    window.removeEventListener("mousemove", this._onWindowMouseMove);
+    window.removeEventListener("mouseup", this._onWindowMouseUp);
+    this.hueSlider.removeEventListener("input", this._onHueInput);
+    this.hueSlider.removeEventListener("mousedown", this._stopPropagation);
+    this.hexInput.removeEventListener("keydown", this._stopPropagation);
+    this.hexInput.removeEventListener("change", this._onHexChange);
+    this.panel.removeEventListener("mousedown", this._stopPropagation);
+  }
+
+  _stopPropagation = (e: Event) => {
+    e.stopPropagation();
+  };
+
+  _onSvWrapMouseDown = (e: MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    this.svDragging = true;
+    this._setSVFromClient(e.clientX, e.clientY);
+  };
+
+  _onWindowMouseMove = (e: MouseEvent) => {
+    if (this.svDragging) this._setSVFromClient(e.clientX, e.clientY);
+  };
+
+  _onWindowMouseUp = () => {
+    this.svDragging = false;
+  };
+
+  _onHueInput = () => {
+    this.h = parseFloat(this.hueSlider.value);
+    this._drawSV();
+    this._syncBottom();
+    this._emit();
+  };
+
+  _onHexChange = () => {
+    const val = this.hexInput.value.trim();
+    const hex = val.startsWith("#") ? val : "#" + val;
+    if (/^#[0-9a-fA-F]{6}$/.test(hex)) {
+      const { r, g, b } = hexToRgb(hex);
+      const hsv = rgbToHsv(r, g, b);
+      this.h = hsv.h;
+      this.s = hsv.s;
+      this.v = hsv.v;
+      this.hueSlider.value = String(this.h);
       this._drawSV();
-      this._syncBottom();
+      this._placeCursor();
+      this.swatch.style.background = hex;
       this._emit();
-    });
-    this.hueSlider.addEventListener("mousedown", (e) => e.stopPropagation());
-    this.hexInput.addEventListener("keydown", (e) => e.stopPropagation());
-    this.hexInput.addEventListener("change", (e) => {
-      const val = e.target.value.trim();
-      const hex = val.startsWith("#") ? val : "#" + val;
-      if (/^#[0-9a-fA-F]{6}$/.test(hex)) {
-        const { r, g, b } = hexToRgb(hex);
-        const hsv = rgbToHsv(r, g, b);
-        this.h = hsv.h;
-        this.s = hsv.s;
-        this.v = hsv.v;
-        this.hueSlider.value = this.h;
-        this._drawSV();
-        this._placeCursor();
-        this.swatch.style.background = hex;
-        this._emit();
-      }
-    });
-    this.panel.addEventListener("mousedown", (e) => e.stopPropagation());
+    }
+  };
+
+  _bind() {
+    this.svWrap.addEventListener("mousedown", this._onSvWrapMouseDown);
+    window.addEventListener("mousemove", this._onWindowMouseMove);
+    window.addEventListener("mouseup", this._onWindowMouseUp);
+    this.hueSlider.addEventListener("input", this._onHueInput);
+    this.hueSlider.addEventListener("mousedown", this._stopPropagation);
+    this.hexInput.addEventListener("keydown", this._stopPropagation);
+    this.hexInput.addEventListener("change", this._onHexChange);
+    this.panel.addEventListener("mousedown", this._stopPropagation);
   }
 }
 
 class GradiatorApp {
-  constructor() {
-    this.container = document.getElementById("canvas-container");
-    this.imageStage = document.getElementById("image-stage");
-    this.glCanvas = document.getElementById("gl-canvas");
-    this.ov = document.getElementById("overlay-canvas");
-    this.preview = document.getElementById("preview-canvas");
-    this.uiControls = document.getElementById("ui-controls");
-    this.uiMoveButton = document.getElementById("btn-ui-move");
-    this.toolbar = document.getElementById("toolbar");
-    this.toolbarMoveButton = document.getElementById("btn-toolbar-move");
-    this.previewFrame = document.getElementById("preview-frame");
-    this.previewMoveBtn = document.getElementById("btn-move");
-    this.previewViewBtn = document.getElementById("btn-view");
-    this.borderToggleButton = document.getElementById("btn-border");
-    this.uiToggleButton = document.getElementById("btn-ui");
-    this.flowButton = document.getElementById("btn-flow");
-    this.colorButton = document.getElementById("btn-color");
-    this.ctx = this.ov.getContext("2d");
-    this.previewCtx = this.preview.getContext("2d");
-
-    this.ROWS = 4;
-    this.COLS = 4;
-    this.SUBS_HI = 28;
-    this.SUBS_LO = 14;
-    this.showGrid = true;
-    this.fullView = false;
-    this.flowModes = [
+  readonly container: HTMLDivElement;
+  readonly imageStage: HTMLDivElement;
+  readonly glCanvas: HTMLCanvasElement;
+  readonly ov: HTMLCanvasElement;
+  readonly preview: HTMLCanvasElement;
+  readonly uiControls: HTMLDivElement;
+  readonly uiMoveButton: HTMLButtonElement;
+  readonly toolbar: HTMLDivElement;
+  readonly toolbarMoveButton: HTMLButtonElement;
+  readonly previewFrame: HTMLDivElement;
+  readonly previewMoveBtn: HTMLButtonElement;
+  readonly previewViewBtn: HTMLButtonElement;
+  readonly borderToggleButton: HTMLButtonElement;
+  readonly uiToggleButton: HTMLButtonElement;
+  readonly gridButton: HTMLButtonElement;
+  readonly flowButton: HTMLButtonElement;
+  readonly colorButton: HTMLButtonElement;
+  readonly randomizeButton: HTMLButtonElement;
+  readonly exportButton: HTMLButtonElement;
+  readonly ctx: CanvasRenderingContext2D;
+  readonly previewCtx: CanvasRenderingContext2D;
+  readonly colorPicker: ColorPicker;
+  readonly flowModes: FlowMode[] = [
       { label: "Linear", blend: 0, kind: "blend" },
       { label: "Balanced", blend: 0.5, kind: "blend" },
       { label: "Fluid", blend: 1, kind: "blend" },
@@ -179,43 +320,100 @@ class GradiatorApp {
       { label: "Attractor", blend: 0.9, kind: "advect", field: "attractor", strength: 0.16, steps: 3 },
       { label: "Turbulence", blend: 1, kind: "advect", field: "turbulence", strength: 0.1, steps: 2 },
     ];
-    this.flowModeIndex = 2;
-    this.flowBlend = this.flowModes[this.flowModeIndex].blend;
-    this.lastSerializedState = "";
-    this.grid = [];
-    this.selected = null;
-    this.dragging = null;
-    this.hovered = null;
-    this.colorMode = "point";
-    this.borderHidden = false;
-    this.uiHidden = false;
-    this.panelDragging = null;
-    this.previewDragging = null;
-    this.previewDockedStyle = null;
-    this.flowGridCache = null;
-    this.flowRuntime = null;
-    this.W = 0;
-    this.H = 0;
+  readonly resizeObserver: ResizeObserver;
+  gl!: WebGLRenderingContext;
+  prog!: WebGLProgram;
+  aPos!: number;
+  aCol!: number;
+  posBuf!: WebGLBuffer;
+  colBuf!: WebGLBuffer;
+  ROWS = 4;
+  COLS = 4;
+  readonly SUBS_HI = 28;
+  readonly SUBS_LO = 14;
+  showGrid = true;
+  fullView = false;
+  flowModeIndex = 2;
+  flowBlend = this.flowModes[this.flowModeIndex].blend;
+  lastSerializedState = "";
+  grid: GradientPoint[][] = [];
+  selected: GridIndex | null = null;
+  dragging: GridIndex | null = null;
+  hovered: GridIndex | null = null;
+  colorMode: "point" | "all" = "point";
+  borderHidden = false;
+  uiHidden = false;
+  panelDragging: PanelDragState | null = null;
+  previewDragging: PreviewDragState | null = null;
+  previewDockedStyle: DockedStyle | null = null;
+  flowGridCache: { key: string; lines: FlowGridLines } | null = null;
+  flowRuntime: FlowRuntime | null = null;
+  W = 0;
+  H = 0;
+  dragStart: Point2D | null = null;
+  pointStart: Point2D | null = null;
+  didDrag = false;
+  pickerTimer: number | null = null;
 
-    this.colorPicker = new ColorPicker((r, g, b) => {
-      if (this.colorMode === "all") {
-        for (let row = 0; row < this.ROWS; row++) {
-          for (let col = 0; col < this.COLS; col++) {
-            const p = this.grid[row][col];
-            p.r = r;
-            p.g = g;
-            p.b = b;
+  constructor(elements: GradiatorAppElements) {
+    this.container = elements.container;
+    this.imageStage = elements.imageStage;
+    this.glCanvas = elements.glCanvas;
+    this.ov = elements.overlayCanvas;
+    this.preview = elements.previewCanvas;
+    this.uiControls = elements.uiControls;
+    this.uiMoveButton = elements.uiMoveButton;
+    this.toolbar = elements.toolbar;
+    this.toolbarMoveButton = elements.toolbarMoveButton;
+    this.previewFrame = elements.previewFrame;
+    this.previewMoveBtn = elements.previewMoveButton;
+    this.previewViewBtn = elements.previewViewButton;
+    this.borderToggleButton = elements.borderToggleButton;
+    this.uiToggleButton = elements.uiToggleButton;
+    this.gridButton = elements.gridButton;
+    this.flowButton = elements.flowButton;
+    this.colorButton = elements.colorButton;
+    this.randomizeButton = elements.randomizeButton;
+    this.exportButton = elements.exportButton;
+
+    const overlayContext = this.ov.getContext("2d");
+    const previewContext = this.preview.getContext("2d");
+    if (!overlayContext || !previewContext) {
+      throw new Error("Missing app canvas context");
+    }
+    this.ctx = overlayContext;
+    this.previewCtx = previewContext;
+
+    this.colorPicker = new ColorPicker(
+      {
+        panel: elements.colorPickerPanel,
+        svWrap: elements.colorPickerSvWrap,
+        svCanvas: elements.colorPickerSvCanvas,
+        svCursor: elements.colorPickerSvCursor,
+        hueSlider: elements.colorPickerHue,
+        hexInput: elements.colorPickerHex,
+        swatch: elements.colorPickerSwatch,
+      },
+      (r, g, b) => {
+        if (this.colorMode === "all") {
+          for (let row = 0; row < this.ROWS; row++) {
+            for (let col = 0; col < this.COLS; col++) {
+              const p = this.grid[row][col];
+              p.r = r;
+              p.g = g;
+              p.b = b;
+            }
           }
+          this.render();
+        } else if (this.selected) {
+          const p = this.grid[this.selected.row][this.selected.col];
+          p.r = r;
+          p.g = g;
+          p.b = b;
+          this.render();
         }
-        this.render();
-      } else if (this.selected) {
-        const p = this.grid[this.selected.row][this.selected.col];
-        p.r = r;
-        p.g = g;
-        p.b = b;
-        this.render();
       }
-    });
+    );
 
     this.applyFlowMode(this.flowModeIndex);
     this.initGL();
@@ -225,18 +423,22 @@ class GradiatorApp {
     this.setupButtons();
     this.resize();
 
-    const ro = new ResizeObserver(() => this.resize());
-    ro.observe(this.container);
-    ro.observe(this.previewFrame);
+    this.resizeObserver = new ResizeObserver(() => this.resize());
+    this.resizeObserver.observe(this.container);
+    this.resizeObserver.observe(this.previewFrame);
   }
 
   initGL() {
     const gl =
-      this.glCanvas.getContext("webgl", { preserveDrawingBuffer: true }) ||
-      this.glCanvas.getContext("experimental-webgl", { preserveDrawingBuffer: true });
+      (this.glCanvas.getContext("webgl", {
+        preserveDrawingBuffer: true,
+      }) as WebGLRenderingContext | null) ||
+      (this.glCanvas.getContext("experimental-webgl", {
+        preserveDrawingBuffer: true,
+      }) as WebGLRenderingContext | null);
     if (!gl) {
       alert("WebGL not supported");
-      return;
+      throw new Error("WebGL not supported");
     }
     this.gl = gl;
     const VS = `attribute vec2 a_pos;attribute vec3 a_col;varying vec3 v_col;
@@ -254,7 +456,7 @@ class GradiatorApp {
     const grayscaleStops = [0.04, 0.16, 0.32, 0.48, 0.64, 0.8, 0.96];
     this.grid = [];
     for (let row = 0; row < this.ROWS; row++) {
-      const r = [];
+      const r: GradientPoint[] = [];
       for (let col = 0; col < this.COLS; col++) {
         const u = col / (this.COLS - 1);
         const v = row / (this.ROWS - 1);
@@ -398,10 +600,10 @@ class GradiatorApp {
       if (!Number.isInteger(rows) || !Number.isInteger(cols) || rows < 2 || cols < 2) return;
       if (!Array.isArray(points) || points.length !== rows * cols * 5) return;
 
-      const grid = [];
+      const grid: GradientPoint[][] = [];
       let i = 0;
       for (let row = 0; row < rows; row++) {
-        const nextRow = [];
+        const nextRow: GradientPoint[] = [];
         for (let col = 0; col < cols; col++) {
           const x = points[i++];
           const y = points[i++];
@@ -706,7 +908,7 @@ class GradiatorApp {
 
   buildFlowGridLines() {
     const interactionMode = Boolean(this.dragging);
-    const seedCount = interactionMode ? 5 : 8;
+    const seedCount: number = interactionMode ? 5 : 8;
     const stepSize = interactionMode ? 0.016 : 0.012;
     const maxSteps = interactionMode ? 84 : 120;
     const margin = 0.08;
@@ -1001,132 +1203,180 @@ class GradiatorApp {
     this.colorPicker.show(rect.left + rect.width / 2, rect.bottom + 8, p.r, p.g, p.b);
   }
 
-  setupEvents() {
-    const ov = this.ov;
-    let dragStart = null;
-    let pointStart = null;
-    let didDrag = false;
-    let pickerTimer = null;
-    const cancelTimer = () => {
-      if (pickerTimer) {
-        clearTimeout(pickerTimer);
-        pickerTimer = null;
-      }
-    };
-    ov.addEventListener("mousedown", (e) => {
-      if (e.button !== 0) return;
-      cancelTimer();
-      const { x, y } = this.getMousePos(e);
-      const hit = this.findPointAt(x, y);
-      didDrag = false;
-      if (hit) {
-        this.dragging = hit;
-        this.selected = hit;
-        dragStart = { x, y };
-        pointStart = { x: this.grid[hit.row][hit.col].x, y: this.grid[hit.row][hit.col].y };
-        ov.style.cursor = "grabbing";
-      } else {
-        this.selected = null;
-        this.colorPicker.hide();
-      }
-      this.renderOverlay();
-    });
-    ov.addEventListener("mousemove", (e) => {
-      const { x, y } = this.getMousePos(e);
-      if (this.dragging && dragStart) {
-        const dx = x - dragStart.x;
-        const dy = y - dragStart.y;
-        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) didDrag = true;
-        const p = this.grid[this.dragging.row][this.dragging.col];
-        p.x = Math.max(0, Math.min(1, pointStart.x + dx / this.W));
-        p.y = Math.max(0, Math.min(1, pointStart.y + dy / this.H));
-        this.render(true);
-      } else {
-        const h = this.findPointAt(x, y);
-        const same = h && this.hovered && h.row === this.hovered.row && h.col === this.hovered.col;
-        if (!same) {
-          this.hovered = h;
-          ov.style.cursor = h ? "grab" : "crosshair";
-          this.renderOverlay();
-        }
-      }
-    });
-    ov.addEventListener("mouseup", () => {
-      if (this.dragging) {
-        const rc = this.dragging;
-        if (!didDrag) {
-          pickerTimer = setTimeout(() => {
-            pickerTimer = null;
-            this.openPickerFor(rc);
-          }, 220);
-        } else {
-          this.render(false);
-        }
-        this.dragging = null;
-        dragStart = null;
-        ov.style.cursor = this.hovered ? "grab" : "crosshair";
-      }
-    });
-    ov.addEventListener("dblclick", (e) => {
-      cancelTimer();
-      const { x, y } = this.getMousePos(e);
-      const hit = this.findPointAt(x, y);
-      if (hit) {
-        if (e.altKey) {
-          this.selected = hit;
-          this.openPickerFor(hit);
-          this.renderOverlay();
-        } else {
-          this.removePointAt(hit.row, hit.col);
-        }
-      } else {
-        this.colorPicker.hide();
-        this.selected = null;
-        this.addPointAt(x, y);
-      }
-    });
-    ov.addEventListener("mouseleave", () => {
-      if (this.dragging) {
-        this.dragging = null;
-        this.render(false);
-      }
-      this.hovered = null;
-      ov.style.cursor = "crosshair";
-      this.renderOverlay();
-    });
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") {
-        cancelTimer();
-        this._stopPanelDrag();
-        this._stopPreviewDrag();
-        this.colorPicker.hide();
-        this.selected = null;
-        if (this.fullView) this.toggleFullView();
-        this.renderOverlay();
-      }
-    });
+  _cancelPickerTimer() {
+    if (this.pickerTimer !== null) {
+      window.clearTimeout(this.pickerTimer);
+      this.pickerTimer = null;
+    }
   }
 
-  setupButtons() {
-    document.getElementById("btn-grid").addEventListener("click", () => {
-      this.showGrid = !this.showGrid;
-      document.getElementById("btn-grid").classList.toggle("active", this.showGrid);
+  _onOverlayMouseDown = (e: MouseEvent) => {
+    if (e.button !== 0) return;
+    this._cancelPickerTimer();
+    const { x, y } = this.getMousePos(e);
+    const hit = this.findPointAt(x, y);
+    this.didDrag = false;
+    if (hit) {
+      this.dragging = hit;
+      this.selected = hit;
+      this.dragStart = { x, y };
+      this.pointStart = { x: this.grid[hit.row][hit.col].x, y: this.grid[hit.row][hit.col].y };
+      this.ov.style.cursor = "grabbing";
+    } else {
+      this.selected = null;
+      this.colorPicker.hide();
+    }
+    this.renderOverlay();
+  };
+
+  _onOverlayMouseMove = (e: MouseEvent) => {
+    const { x, y } = this.getMousePos(e);
+    if (this.dragging && this.dragStart && this.pointStart) {
+      const dx = x - this.dragStart.x;
+      const dy = y - this.dragStart.y;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) this.didDrag = true;
+      const p = this.grid[this.dragging.row][this.dragging.col];
+      p.x = Math.max(0, Math.min(1, this.pointStart.x + dx / this.W));
+      p.y = Math.max(0, Math.min(1, this.pointStart.y + dy / this.H));
+      this.render(true);
+    } else {
+      const h = this.findPointAt(x, y);
+      const same = h && this.hovered && h.row === this.hovered.row && h.col === this.hovered.col;
+      if (!same) {
+        this.hovered = h;
+        this.ov.style.cursor = h ? "grab" : "crosshair";
+        this.renderOverlay();
+      }
+    }
+  };
+
+  _onOverlayMouseUp = () => {
+    if (!this.dragging) return;
+    const rc = this.dragging;
+    if (!this.didDrag) {
+      this.pickerTimer = window.setTimeout(() => {
+        this.pickerTimer = null;
+        this.openPickerFor(rc);
+      }, 220);
+    } else {
+      this.render(false);
+    }
+    this.dragging = null;
+    this.dragStart = null;
+    this.pointStart = null;
+    this.ov.style.cursor = this.hovered ? "grab" : "crosshair";
+  };
+
+  _onOverlayDoubleClick = (e: MouseEvent) => {
+    this._cancelPickerTimer();
+    const { x, y } = this.getMousePos(e);
+    const hit = this.findPointAt(x, y);
+    if (hit) {
+      if (e.altKey) {
+        this.selected = hit;
+        this.openPickerFor(hit);
+        this.renderOverlay();
+      } else {
+        this.removePointAt(hit.row, hit.col);
+      }
+    } else {
+      this.colorPicker.hide();
+      this.selected = null;
+      this.addPointAt(x, y);
+    }
+  };
+
+  _onOverlayMouseLeave = () => {
+    if (this.dragging) {
+      this.dragging = null;
+      this.dragStart = null;
+      this.pointStart = null;
+      this.render(false);
+    }
+    this.hovered = null;
+    this.ov.style.cursor = "crosshair";
+    this.renderOverlay();
+  };
+
+  _onDocumentKeyDown = (e: KeyboardEvent) => {
+    if (e.key === "Escape") {
+      this._cancelPickerTimer();
+      this._stopPanelDrag();
+      this._stopPreviewDrag();
+      this.colorPicker.hide();
+      this.selected = null;
+      if (this.fullView) this.toggleFullView();
       this.renderOverlay();
-    });
-    this.uiMoveButton.addEventListener("mousedown", (e) =>
-      this.startPanelDrag(e, this.uiControls, this.uiMoveButton)
-    );
-    this.toolbarMoveButton.addEventListener("mousedown", (e) =>
-      this.startPanelDrag(e, this.toolbar, this.toolbarMoveButton)
-    );
-    this.borderToggleButton.addEventListener("click", () => this.toggleBorder());
-    this.uiToggleButton.addEventListener("click", () => this.toggleUi());
-    this.flowButton.addEventListener("click", () => this.cycleFlowMode());
-    document.getElementById("btn-randomize").addEventListener("click", () => this.randomizeColors());
-    this.colorButton.addEventListener("click", () => this.openGradientPicker());
-    this.previewViewBtn.addEventListener("click", () => this.toggleFullView());
-    this.previewMoveBtn.addEventListener("mousedown", (e) => this.startPreviewDrag(e));
-    document.getElementById("btn-export").addEventListener("click", () => this.exportPng());
+    }
+  };
+
+  setupEvents() {
+    this.ov.addEventListener("mousedown", this._onOverlayMouseDown);
+    this.ov.addEventListener("mousemove", this._onOverlayMouseMove);
+    this.ov.addEventListener("mouseup", this._onOverlayMouseUp);
+    this.ov.addEventListener("dblclick", this._onOverlayDoubleClick);
+    this.ov.addEventListener("mouseleave", this._onOverlayMouseLeave);
+    document.addEventListener("keydown", this._onDocumentKeyDown);
+  }
+
+  _onGridButtonClick = () => {
+    this.showGrid = !this.showGrid;
+    this.gridButton.classList.toggle("active", this.showGrid);
+    this.renderOverlay();
+  };
+
+  _onUiMoveMouseDown = (e: MouseEvent) => {
+    this.startPanelDrag(e, this.uiControls, this.uiMoveButton);
+  };
+
+  _onToolbarMoveMouseDown = (e: MouseEvent) => {
+    this.startPanelDrag(e, this.toolbar, this.toolbarMoveButton);
+  };
+
+  _onBorderToggleClick = () => {
+    this.toggleBorder();
+  };
+
+  _onUiToggleClick = () => {
+    this.toggleUi();
+  };
+
+  _onFlowButtonClick = () => {
+    this.cycleFlowMode();
+  };
+
+  _onRandomizeButtonClick = () => {
+    this.randomizeColors();
+  };
+
+  _onColorButtonClick = () => {
+    this.openGradientPicker();
+  };
+
+  _onPreviewViewClick = () => {
+    this.toggleFullView();
+  };
+
+  _onPreviewMoveMouseDown = (e: MouseEvent) => {
+    this.startPreviewDrag(e);
+  };
+
+  _onExportButtonClick = () => {
+    this.exportPng();
+  };
+
+  setupButtons() {
+    this.gridButton.addEventListener("click", this._onGridButtonClick);
+    this.uiMoveButton.addEventListener("mousedown", this._onUiMoveMouseDown);
+    this.toolbarMoveButton.addEventListener("mousedown", this._onToolbarMoveMouseDown);
+    this.borderToggleButton.addEventListener("click", this._onBorderToggleClick);
+    this.uiToggleButton.addEventListener("click", this._onUiToggleClick);
+    this.flowButton.addEventListener("click", this._onFlowButtonClick);
+    this.randomizeButton.addEventListener("click", this._onRandomizeButtonClick);
+    this.colorButton.addEventListener("click", this._onColorButtonClick);
+    this.previewViewBtn.addEventListener("click", this._onPreviewViewClick);
+    this.previewMoveBtn.addEventListener("mousedown", this._onPreviewMoveMouseDown);
+    this.exportButton.addEventListener("click", this._onExportButtonClick);
   }
 
   setUiHidden(hidden) {
@@ -1313,8 +1563,42 @@ class GradiatorApp {
     a.href = this.glCanvas.toDataURL("image/png");
     a.click();
   }
+
+  destroy() {
+    this._cancelPickerTimer();
+    this._stopPanelDrag();
+    this._stopPreviewDrag();
+
+    this.ov.removeEventListener("mousedown", this._onOverlayMouseDown);
+    this.ov.removeEventListener("mousemove", this._onOverlayMouseMove);
+    this.ov.removeEventListener("mouseup", this._onOverlayMouseUp);
+    this.ov.removeEventListener("dblclick", this._onOverlayDoubleClick);
+    this.ov.removeEventListener("mouseleave", this._onOverlayMouseLeave);
+    document.removeEventListener("keydown", this._onDocumentKeyDown);
+
+    this.gridButton.removeEventListener("click", this._onGridButtonClick);
+    this.uiMoveButton.removeEventListener("mousedown", this._onUiMoveMouseDown);
+    this.toolbarMoveButton.removeEventListener("mousedown", this._onToolbarMoveMouseDown);
+    this.borderToggleButton.removeEventListener("click", this._onBorderToggleClick);
+    this.uiToggleButton.removeEventListener("click", this._onUiToggleClick);
+    this.flowButton.removeEventListener("click", this._onFlowButtonClick);
+    this.randomizeButton.removeEventListener("click", this._onRandomizeButtonClick);
+    this.colorButton.removeEventListener("click", this._onColorButtonClick);
+    this.previewViewBtn.removeEventListener("click", this._onPreviewViewClick);
+    this.previewMoveBtn.removeEventListener("mousedown", this._onPreviewMoveMouseDown);
+    this.exportButton.removeEventListener("click", this._onExportButtonClick);
+
+    this.resizeObserver.disconnect();
+    this.colorPicker.hide();
+    this.colorPicker.destroy();
+    this.selected = null;
+    this.dragging = null;
+    this.hovered = null;
+    this.ov.style.cursor = "crosshair";
+    document.body.classList.remove("ui-hidden", "border-hidden", "preview-full");
+  }
 }
 
-export function bootGradiatorApp() {
-  return new GradiatorApp();
+export function bootGradiatorApp(elements: GradiatorAppElements) {
+  return new GradiatorApp(elements);
 }
