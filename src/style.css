@@ -147,9 +147,7 @@ body {
 }
 
 .logo-tooltip {
-  position: absolute;
-  top: 50%;
-  left: calc(100% + 12px);
+  position: fixed;
   z-index: 20;
   width: min(280px, calc(100vw - 32px));
   padding: 10px 12px;
@@ -160,13 +158,13 @@ body {
     0 14px 30px rgba(0, 0, 0, 0.28),
     inset 0 0 0 1px rgba(255, 255, 255, 0.03);
   backdrop-filter: blur(6px);
-  transform: translateY(-50%);
   color: rgba(255, 255, 255, 0.88);
   font-size: 12px;
   font-weight: 400;
   line-height: 1.45;
   letter-spacing: 0.02em;
-  white-space: normal;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
 }
 
 #brand-mark {
@@ -438,7 +436,6 @@ body.preview-full #preview-canvas {
   }
 
   .logo-tooltip {
-    left: calc(100% + 8px);
     width: min(260px, calc(100vw - 24px));
   }
 
