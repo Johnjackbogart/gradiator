@@ -38,7 +38,7 @@ export function Toolbar({
             ⊞ Grid
           </button>
           <button className="btn active" id="btn-flow" type="button" ref={flowButtonRef}>
-            Flow: Fluid
+            Flow All: Fluid
           </button>
           <button className="btn active" id="btn-aspect" type="button" ref={aspectButtonRef}>
             Aspect: Browser

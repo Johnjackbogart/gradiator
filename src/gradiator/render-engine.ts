@@ -1,5 +1,6 @@
 import { rgbToHex } from "../utils/color.js";
-import type { FlowGridLines, GradientPoint, GridIndex } from "./types";
+import { clamp } from "../utils/math.js";
+import type { AreaFlowControl, FlowGridLines, GradientPoint, GridAreaIndex, GridIndex } from "./types";
 
 type SampleField = (u: number, v: number) => GradientPoint;
 
@@ -30,9 +31,19 @@ type RenderOverlayOptions = {
   grid: GradientPoint[][];
   showGrid: boolean;
   flowLines: FlowGridLines;
+  areaFlowControls: AreaFlowControl[];
+  activeAreaFlowControl: GridAreaIndex | null;
+  hoveredAreaFlowControl: GridAreaIndex | null;
   selected: GridIndex | null;
   dragging: GridIndex | null;
   hovered: GridIndex | null;
+};
+
+type BuildAreaFlowControlsOptions = {
+  width: number;
+  height: number;
+  grid: GradientPoint[][];
+  flowModeGrid: number[][];
 };
 
 export function renderGlMesh({
@@ -92,13 +103,51 @@ export function renderOverlayCanvas({
   grid,
   showGrid,
   flowLines,
+  areaFlowControls,
+  activeAreaFlowControl,
+  hoveredAreaFlowControl,
   selected,
   dragging,
   hovered,
 }: RenderOverlayOptions) {
   ctx.clearRect(0, 0, width, height);
-  if (showGrid) drawGrid(ctx, width, height, grid, flowLines);
+  if (showGrid) {
+    drawGrid(ctx, width, height, grid, flowLines);
+    drawAreaFlowControls(ctx, areaFlowControls, activeAreaFlowControl, hoveredAreaFlowControl);
+  }
   drawHandles(ctx, width, height, grid, selected, dragging, hovered);
+}
+
+export function buildAreaFlowControls({ width, height, grid, flowModeGrid }: BuildAreaFlowControlsOptions) {
+  const controls: AreaFlowControl[] = [];
+  const rows = grid.length;
+  const cols = grid[0]?.length ?? 0;
+
+  for (let row = 0; row < rows - 1; row++) {
+    for (let col = 0; col < cols - 1; col++) {
+      const tl = grid[row][col];
+      const tr = grid[row][col + 1];
+      const bl = grid[row + 1][col];
+      const br = grid[row + 1][col + 1];
+      const topSpan = distance(tl, tr, width, height);
+      const bottomSpan = distance(bl, br, width, height);
+      const leftSpan = distance(tl, bl, width, height);
+      const rightSpan = distance(tr, br, width, height);
+      const minSpan = Math.min((topSpan + bottomSpan) * 0.5, (leftSpan + rightSpan) * 0.5);
+      const radius = clamp(minSpan * 0.12, 8, 14);
+
+      controls.push({
+        row,
+        col,
+        x: ((tl.x + tr.x + bl.x + br.x) * 0.25) * width,
+        y: ((tl.y + tr.y + bl.y + br.y) * 0.25) * height,
+        radius,
+        modeIndex: flowModeGrid[row]?.[col] ?? 0,
+      });
+    }
+  }
+
+  return controls;
 }
 
 export function downloadCanvasAsPng(canvas: HTMLCanvasElement, filename = "gradient.png") {
@@ -257,10 +306,60 @@ function drawHandles(
   }
 }
 
+function drawAreaFlowControls(
+  ctx: CanvasRenderingContext2D,
+  controls: AreaFlowControl[],
+  activeAreaFlowControl: GridAreaIndex | null,
+  hoveredAreaFlowControl: GridAreaIndex | null,
+) {
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  for (const control of controls) {
+    const isActive =
+      Boolean(activeAreaFlowControl) &&
+      activeAreaFlowControl?.row === control.row &&
+      activeAreaFlowControl?.col === control.col;
+    const isHovered =
+      Boolean(hoveredAreaFlowControl) &&
+      hoveredAreaFlowControl?.row === control.row &&
+      hoveredAreaFlowControl?.col === control.col;
+    const outerRadius = control.radius + (isActive ? 4 : 2);
+
+    ctx.beginPath();
+    ctx.arc(control.x, control.y, outerRadius, 0, Math.PI * 2);
+    ctx.fillStyle = isActive ? "rgba(5, 5, 5, 0.92)" : "rgba(8, 8, 8, 0.74)";
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(control.x, control.y, outerRadius, 0, Math.PI * 2);
+    ctx.strokeStyle = isActive
+      ? "rgba(255, 255, 255, 0.94)"
+      : isHovered
+        ? "rgba(255, 255, 255, 0.6)"
+        : "rgba(255, 255, 255, 0.28)";
+    ctx.lineWidth = isActive ? 1.8 : 1.1;
+    ctx.stroke();
+
+    ctx.fillStyle = isActive ? "rgba(255, 255, 255, 0.98)" : "rgba(255, 255, 255, 0.84)";
+    ctx.font = `${Math.round(control.radius + 3)}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+    ctx.fillText("⚙", control.x, control.y + 0.5);
+  }
+
+  ctx.restore();
+}
+
 function drawFlowPath(ctx: CanvasRenderingContext2D, line: { x: number; y: number }[], width: number, height: number) {
   if (!line || line.length < 2) return;
   ctx.beginPath();
   ctx.moveTo(line[0].x * width, line[0].y * height);
   for (let i = 1; i < line.length; i++) ctx.lineTo(line[i].x * width, line[i].y * height);
   ctx.stroke();
+}
+
+function distance(a: GradientPoint, b: GradientPoint, width: number, height: number) {
+  const dx = (b.x - a.x) * width;
+  const dy = (b.y - a.y) * height;
+  return Math.hypot(dx, dy);
 }

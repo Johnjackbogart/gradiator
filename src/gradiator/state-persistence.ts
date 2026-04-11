@@ -5,7 +5,7 @@ import type { GradientPoint, SerializedGradiatorState } from "./types";
 type SerializeGradiatorStateInput = {
   rows: number;
   cols: number;
-  flowModeIndex: number;
+  flowModeGrid: number[][];
   aspectModeKey: SerializedGradiatorState["aspect"];
   grid: GradientPoint[][];
   roundValue: (value: number) => number;
@@ -15,6 +15,7 @@ export type RestoredGradiatorState = {
   rows: number;
   cols: number;
   flowModeIndex: number | null;
+  flowModeGrid: number[][] | null;
   aspectModeKey: string | null;
   grid: GradientPoint[][];
 };
@@ -22,16 +23,17 @@ export type RestoredGradiatorState = {
 export function serializeGradiatorState({
   rows,
   cols,
-  flowModeIndex,
+  flowModeGrid,
   aspectModeKey,
   grid,
   roundValue,
 }: SerializeGradiatorStateInput) {
   return encodeUrlState({
-    v: 2,
+    v: 3,
     rows,
     cols,
-    flow: flowModeIndex,
+    flow: flowModeGrid[0]?.[0] ?? 0,
+    flows: flowModeGrid.flatMap((row) => row.map((modeIndex) => Math.round(modeIndex))),
     aspect: aspectModeKey,
     points: grid.flatMap((row) =>
       row.flatMap((point) => [
@@ -50,6 +52,7 @@ export function parseGradiatorState(encoded: string): RestoredGradiatorState | n
   const rows = state?.rows;
   const cols = state?.cols;
   const points = state?.points;
+  const flowCount = Math.max(0, (rows ?? 0) - 1) * Math.max(0, (cols ?? 0) - 1);
   if (!Number.isInteger(rows) || !Number.isInteger(cols) || rows < 2 || cols < 2) return null;
   if (!Array.isArray(points) || points.length !== rows * cols * 5) return null;
 
@@ -75,10 +78,25 @@ export function parseGradiatorState(encoded: string): RestoredGradiatorState | n
     grid.push(nextRow);
   }
 
+  let flowModeGrid: number[][] | null = null;
+  if (Array.isArray(state?.flows) && state.flows.length === flowCount) {
+    flowModeGrid = [];
+    let flowIndex = 0;
+    for (let row = 0; row < rows - 1; row++) {
+      const nextRow: number[] = [];
+      for (let col = 0; col < cols - 1; col++) {
+        const value = state.flows[flowIndex++];
+        nextRow.push(Number.isFinite(value) ? Math.round(value) : 0);
+      }
+      flowModeGrid.push(nextRow);
+    }
+  }
+
   return {
     rows,
     cols,
     flowModeIndex: Number.isInteger(state.flow) ? state.flow : null,
+    flowModeGrid,
     aspectModeKey: typeof state?.aspect === "string" ? state.aspect : null,
     grid,
   };

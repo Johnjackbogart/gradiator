@@ -24,12 +24,22 @@ import {
 } from "./gradiator/model/field-sampler";
 import {
   downloadCanvasAsPng,
+  buildAreaFlowControls,
   renderGlMesh,
   renderOverlayCanvas,
   renderPreviewCanvas,
 } from "./gradiator/render-engine";
+import {
+  collapseFlowModeGridForPointRemoval,
+  createFlowModeGrid,
+  fillFlowModeGrid,
+  getFlowAreaIndex,
+  normalizeFlowModeGrid,
+  splitFlowModeGrid,
+} from "./gradiator/model/flow-mode-grid";
 import { parseGradiatorState, serializeGradiatorState } from "./gradiator/state-persistence";
 import type {
+  AreaFlowControl,
   AspectMode,
   DockedStyle,
   FlowGridLines,
@@ -37,6 +47,7 @@ import type {
   FlowRuntime,
   GradientPoint,
   GradiatorAppElements,
+  GridAreaIndex,
   GridIndex,
   PanelDragState,
   Point2D,
@@ -69,6 +80,9 @@ class GradiatorApp {
   readonly colorButton: HTMLButtonElement;
   readonly randomizeButton: HTMLButtonElement;
   readonly exportButton: HTMLButtonElement;
+  readonly areaFlowMenu: HTMLDivElement;
+  readonly areaFlowMenuTitle: HTMLDivElement;
+  readonly areaFlowMenuOptions: HTMLDivElement;
   readonly ctx: CanvasRenderingContext2D;
   readonly previewCtx: CanvasRenderingContext2D;
   readonly colorPicker: ColorPicker;
@@ -87,22 +101,25 @@ class GradiatorApp {
   readonly SUBS_LO = 14;
   showGrid = true;
   fullView = false;
-  flowModeIndex = 2;
+  defaultFlowModeIndex = 2;
   aspectModeIndex = 3;
-  flowBlend = this.flowModes[this.flowModeIndex].blend;
   lastSerializedState = "";
   grid: GradientPoint[][] = [];
+  flowModeGrid: number[][] = [];
   selected: GridIndex | null = null;
   dragging: GridIndex | null = null;
   hovered: GridIndex | null = null;
+  activeAreaFlowControl: GridAreaIndex | null = null;
+  hoveredAreaFlowControl: GridAreaIndex | null = null;
   colorMode: "point" | "all" = "point";
   borderHidden = false;
   uiHidden = false;
   panelDragging: PanelDragState | null = null;
   previewDragging: PreviewDragState | null = null;
   previewDockedStyle: DockedStyle | null = null;
+  areaFlowControls: AreaFlowControl[] = [];
   flowGridCache: { key: string; lines: FlowGridLines } | null = null;
-  flowRuntime: FlowRuntime | null = null;
+  flowRuntimeGrid: FlowRuntime[][] = [];
   W = 0;
   H = 0;
   dragStart: Point2D | null = null;
@@ -131,6 +148,9 @@ class GradiatorApp {
     this.colorButton = elements.colorButton;
     this.randomizeButton = elements.randomizeButton;
     this.exportButton = elements.exportButton;
+    this.areaFlowMenu = elements.areaFlowMenu;
+    this.areaFlowMenuTitle = elements.areaFlowMenuTitle;
+    this.areaFlowMenuOptions = elements.areaFlowMenuOptions;
 
     const overlayContext = this.ov.getContext("2d");
     const previewContext = this.preview.getContext("2d");
@@ -171,9 +191,11 @@ class GradiatorApp {
       }
     );
 
-    this.applyFlowMode(this.flowModeIndex);
+    this.initAreaFlowMenu();
     this.initGL();
     this.initPoints();
+    this.initFlowModeGrid();
+    this.setDefaultFlowMode(this.defaultFlowModeIndex);
     this.restoreStateFromUrl();
     this.applyAspectMode(this.aspectModeIndex);
     this.setupEvents();
@@ -213,22 +235,54 @@ class GradiatorApp {
     this.grid = createInitialGrid(this.ROWS, this.COLS);
   }
 
+  initFlowModeGrid(modeIndex = this.defaultFlowModeIndex) {
+    this.flowModeGrid = createFlowModeGrid(this.ROWS, this.COLS, modeIndex);
+  }
+
+  initAreaFlowMenu() {
+    const buttons = this.flowModes.map((mode, index) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "btn";
+      button.dataset.flowModeIndex = String(index);
+      button.textContent = mode.label;
+      return button;
+    });
+    this.areaFlowMenuOptions.replaceChildren(...buttons);
+    this.areaFlowMenu.hidden = true;
+  }
+
   syncGridDimensions() {
     this.ROWS = this.grid.length;
     this.COLS = this.grid[0]?.length ?? 0;
+    this.flowRuntimeGrid = [];
+    this.areaFlowControls = [];
   }
 
-  applyFlowMode(index) {
+  setDefaultFlowMode(index) {
     const safeIndex = clamp(index, 0, this.flowModes.length - 1);
-    this.flowModeIndex = safeIndex;
-    const mode = this.flowModes[this.flowModeIndex];
-    this.flowBlend = mode.blend;
-    this.flowRuntime = null;
-    if (this.flowButton) this.flowButton.textContent = `Flow: ${mode.label}`;
+    this.defaultFlowModeIndex = safeIndex;
+    const mode = this.flowModes[this.defaultFlowModeIndex];
+    if (this.flowButton) this.flowButton.textContent = `Flow All: ${mode.label}`;
   }
 
-  currentFlowMode() {
-    return this.flowModes[this.flowModeIndex] || this.flowModes[0];
+  applyFlowModeToAll(index) {
+    this.setDefaultFlowMode(index);
+    fillFlowModeGrid(this.flowModeGrid, this.defaultFlowModeIndex);
+    this.updateAreaFlowMenuButtons();
+  }
+
+  getFlowMode(index) {
+    const safeIndex = clamp(index, 0, this.flowModes.length - 1);
+    return this.flowModes[safeIndex] || this.flowModes[0];
+  }
+
+  getAreaFlowModeIndex(row: number, col: number) {
+    return this.flowModeGrid[row]?.[col] ?? this.defaultFlowModeIndex;
+  }
+
+  getAreaFlowMode(row: number, col: number) {
+    return this.getFlowMode(this.getAreaFlowModeIndex(row, col));
   }
 
   currentAspectMode() {
@@ -259,13 +313,40 @@ class GradiatorApp {
     return width / height;
   }
 
-  buildFlowRuntime() {
-    return buildFlowRuntimeFromEngine(this.grid);
+  buildFlowRuntimeGrid() {
+    const runtimes: FlowRuntime[][] = [];
+
+    for (let row = 0; row < this.ROWS - 1; row++) {
+      const runtimeRow: FlowRuntime[] = [];
+      for (let col = 0; col < this.COLS - 1; col++) {
+        runtimeRow.push(
+          buildFlowRuntimeFromEngine([
+            [this.grid[row][col], this.grid[row][col + 1]],
+            [this.grid[row + 1][col], this.grid[row + 1][col + 1]],
+          ]),
+        );
+      }
+      runtimes.push(runtimeRow);
+    }
+
+    return runtimes;
   }
 
-  getFlowRuntime() {
-    if (!this.flowRuntime) this.flowRuntime = this.buildFlowRuntime();
-    return this.flowRuntime;
+  getFlowRuntime(row: number, col: number) {
+    return this.flowRuntimeGrid[row]?.[col] ?? buildFlowRuntimeFromEngine(this.grid);
+  }
+
+  getAreaAtPosition(u: number, v: number) {
+    return getFlowAreaIndex(this.ROWS, this.COLS, u, v);
+  }
+
+  getAreaBounds(area: GridAreaIndex) {
+    return {
+      uMin: area.col / (this.COLS - 1),
+      uMax: (area.col + 1) / (this.COLS - 1),
+      vMin: area.row / (this.ROWS - 1),
+      vMax: (area.row + 1) / (this.ROWS - 1),
+    };
   }
 
   roundStateValue(value) {
@@ -276,7 +357,7 @@ class GradiatorApp {
     return serializeGradiatorState({
       rows: this.ROWS,
       cols: this.COLS,
-      flowModeIndex: this.flowModeIndex,
+      flowModeGrid: this.flowModeGrid,
       aspectModeKey: this.currentAspectMode().key,
       grid: this.grid,
       roundValue: (value) => this.roundStateValue(value),
@@ -303,11 +384,19 @@ class GradiatorApp {
       this.ROWS = state.rows;
       this.COLS = state.cols;
       this.grid = state.grid;
+      this.setDefaultFlowMode(state.flowModeIndex ?? this.defaultFlowModeIndex);
+      this.flowModeGrid = normalizeFlowModeGrid(
+        state.flowModeGrid,
+        this.ROWS,
+        this.COLS,
+        this.defaultFlowModeIndex,
+        this.flowModes.length - 1,
+      );
       if (state.aspectModeKey) {
         const aspectModeIndex = this.findAspectModeIndex(state.aspectModeKey);
         if (aspectModeIndex >= 0) this.aspectModeIndex = aspectModeIndex;
       }
-      this.applyFlowMode(state.flowModeIndex ?? this.flowModeIndex);
+      this.updateAreaFlowMenuButtons();
       this.lastSerializedState = encoded;
     } catch (error) {
       console.warn("Failed to restore canvas state from URL", error);
@@ -320,38 +409,56 @@ class GradiatorApp {
 
   removePointAt(row, col) {
     if (!removeGridPoint(this.grid, row, col)) return false;
+    this.flowModeGrid = collapseFlowModeGridForPointRemoval(
+      this.flowModeGrid,
+      row,
+      col,
+      this.defaultFlowModeIndex,
+    );
     this.syncGridDimensions();
     this.selected = null;
     this.dragging = null;
     this.hovered = null;
+    this.hoveredAreaFlowControl = null;
     this.colorPicker.hide();
+    this.hideAreaFlowMenu(false);
     this.render();
     return true;
   }
 
-  sampleInterpolatedField(u, v, blend = this.flowBlend) {
+  sampleInterpolatedField(u, v, blend) {
     return sampleInterpolatedFieldFromGrid(this.grid, u, v, blend);
   }
 
-  sampleModeVector(field, u, v) {
-    return sampleModeVectorFromEngine(this.getFlowRuntime(), field, u, v);
+  sampleModeVector(field, u, v, area: GridAreaIndex | null = this.getAreaAtPosition(u, v)) {
+    if (!field || !area) return null;
+    return sampleModeVectorFromEngine(this.getFlowRuntime(area.row, area.col), field, u, v);
   }
 
-  sampleFlowSource(u, v, mode) {
-    return sampleFlowSourceFromEngine(mode, u, v, (sampleU, sampleV) =>
-      this.sampleModeVector(mode.field, sampleU, sampleV),
+  sampleFlowSource(u, v, mode, area: GridAreaIndex | null = this.getAreaAtPosition(u, v)) {
+    if (!area) return { u, v };
+    return sampleFlowSourceFromEngine(
+      mode,
+      u,
+      v,
+      (sampleU, sampleV) => this.sampleModeVector(mode.field, sampleU, sampleV, area),
+      this.getAreaBounds(area),
     );
   }
 
   sampleField(u, v) {
-    const mode = this.currentFlowMode();
+    const area = this.getAreaAtPosition(u, v);
+    if (!area) return this.sampleInterpolatedField(u, v, this.getFlowMode(this.defaultFlowModeIndex).blend);
+
+    const mode = this.getAreaFlowMode(area.row, area.col);
     return sampleFieldForMode({
       mode,
       u,
       v,
+      bounds: this.getAreaBounds(area),
       sampleInterpolatedField: (sampleU, sampleV, blend) =>
         this.sampleInterpolatedField(sampleU, sampleV, blend),
-      sampleModeVector: (sampleU, sampleV) => this.sampleModeVector(mode.field, sampleU, sampleV),
+      sampleModeVector: (sampleU, sampleV) => this.sampleModeVector(mode.field, sampleU, sampleV, area),
     });
   }
 
@@ -378,13 +485,14 @@ class GradiatorApp {
   }
 
   sampleFlowDirection(u, v, orthogonal = false) {
-    const mode = this.currentFlowMode();
+    const area = this.getAreaAtPosition(u, v);
+    const mode = area ? this.getAreaFlowMode(area.row, area.col) : this.getFlowMode(this.defaultFlowModeIndex);
     return sampleFlowDirectionForMode({
       mode,
       u,
       v,
       orthogonal,
-      sampleModeVector: (sampleU, sampleV) => this.sampleModeVector(mode.field, sampleU, sampleV),
+      sampleModeVector: (sampleU, sampleV) => this.sampleModeVector(mode.field, sampleU, sampleV, area),
       sampleTensorDirection: (sampleU, sampleV, isOrthogonal = false) =>
         this.sampleTensorDirection(sampleU, sampleV, isOrthogonal),
     });
@@ -428,12 +536,26 @@ class GradiatorApp {
       sampleColor: (u, v) => this.sampleColor(u, v),
     });
     if (!insertedPoint) return;
+    this.flowModeGrid = splitFlowModeGrid(
+      this.flowModeGrid,
+      insertedPoint.splitCell.row,
+      insertedPoint.splitCell.col,
+      this.defaultFlowModeIndex,
+    );
     this.syncGridDimensions();
+    this.selected = insertedPoint.insertedPoint;
+    this.hideAreaFlowMenu(false);
     this.render();
   }
 
   render(isDragging = false) {
-    this.flowRuntime = this.buildFlowRuntime();
+    this.flowRuntimeGrid = this.buildFlowRuntimeGrid();
+    this.areaFlowControls = buildAreaFlowControls({
+      width: this.W,
+      height: this.H,
+      grid: this.grid,
+      flowModeGrid: this.flowModeGrid,
+    });
     this.renderGL(isDragging ? this.SUBS_LO : this.SUBS_HI);
     this.renderPreview();
     this.renderOverlay();
@@ -464,6 +586,9 @@ class GradiatorApp {
       grid: this.grid,
       showGrid: this.showGrid,
       flowLines: this.getFlowGridLines(),
+      areaFlowControls: this.areaFlowControls,
+      activeAreaFlowControl: this.activeAreaFlowControl,
+      hoveredAreaFlowControl: this.hoveredAreaFlowControl,
       selected: this.selected,
       dragging: this.dragging,
       hovered: this.hovered,
@@ -476,6 +601,69 @@ class GradiatorApp {
       targetCanvas: this.preview,
       sourceCanvas: this.glCanvas,
     });
+  }
+
+  findAreaFlowControlAt(x: number, y: number) {
+    if (!this.showGrid) return null;
+
+    for (let index = this.areaFlowControls.length - 1; index >= 0; index--) {
+      const control = this.areaFlowControls[index];
+      const dx = x - control.x;
+      const dy = y - control.y;
+      const hitRadius = control.radius + 6;
+      if (dx * dx + dy * dy <= hitRadius * hitRadius) return control;
+    }
+
+    return null;
+  }
+
+  updateAreaFlowMenuButtons() {
+    const activeModeIndex = this.activeAreaFlowControl
+      ? this.getAreaFlowModeIndex(this.activeAreaFlowControl.row, this.activeAreaFlowControl.col)
+      : null;
+
+    for (const button of this.areaFlowMenuOptions.querySelectorAll<HTMLButtonElement>("button[data-flow-mode-index]")) {
+      const modeIndex = Number(button.dataset.flowModeIndex);
+      button.classList.toggle("active", modeIndex === activeModeIndex);
+    }
+  }
+
+  positionAreaFlowMenu(control: AreaFlowControl) {
+    this.areaFlowMenu.hidden = false;
+    const menuRect = this.areaFlowMenu.getBoundingClientRect();
+    const menuWidth = menuRect.width || 180;
+    const menuHeight = menuRect.height || 120;
+    const desiredLeft = this.imageStage.offsetLeft + control.x + control.radius + 12;
+    const desiredTop = this.imageStage.offsetTop + control.y - menuHeight * 0.35;
+    const maxLeft = Math.max(0, this.container.clientWidth - menuWidth - 8);
+    const maxTop = Math.max(0, this.container.clientHeight - menuHeight - 8);
+    const left = maxLeft < 8 ? maxLeft : clamp(desiredLeft, 8, maxLeft);
+    const top = maxTop < 8 ? maxTop : clamp(desiredTop, 8, maxTop);
+
+    this.areaFlowMenu.style.left = `${left}px`;
+    this.areaFlowMenu.style.top = `${top}px`;
+  }
+
+  showAreaFlowMenu(control: AreaFlowControl) {
+    this.activeAreaFlowControl = { row: control.row, col: control.col };
+    this.areaFlowMenuTitle.textContent = `Area ${control.row + 1}, ${control.col + 1}`;
+    this.updateAreaFlowMenuButtons();
+    this.positionAreaFlowMenu(control);
+    this.renderOverlay();
+  }
+
+  hideAreaFlowMenu(shouldRender = true) {
+    const hadOpenMenu = !this.areaFlowMenu.hidden || Boolean(this.activeAreaFlowControl);
+    this.activeAreaFlowControl = null;
+    this.areaFlowMenu.hidden = true;
+    if (hadOpenMenu) this.updateAreaFlowMenuButtons();
+    if (hadOpenMenu && shouldRender) this.renderOverlay();
+  }
+
+  setAreaFlowMode(row: number, col: number, index: number) {
+    if (!this.flowModeGrid[row]?.length || this.flowModeGrid[row][col] === undefined) return;
+    this.flowModeGrid[row][col] = clamp(index, 0, this.flowModes.length - 1);
+    this.updateAreaFlowMenuButtons();
   }
 
   getImageInset() {
@@ -537,6 +725,13 @@ class GradiatorApp {
     this.clampFloatingPanel(this.toolbar);
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     this.render();
+    if (this.activeAreaFlowControl) {
+      const activeControl = this.areaFlowControls.find(
+        (control) =>
+          control.row === this.activeAreaFlowControl?.row && control.col === this.activeAreaFlowControl?.col,
+      );
+      if (activeControl) this.positionAreaFlowMenu(activeControl);
+    }
   }
 
   getMousePos(e) {
@@ -573,6 +768,15 @@ class GradiatorApp {
     if (e.button !== 0) return;
     this._cancelPickerTimer();
     const { x, y } = this.getMousePos(e);
+    const areaControl = this.findAreaFlowControlAt(x, y);
+    if (areaControl) {
+      this.colorPicker.hide();
+      this.showAreaFlowMenu(areaControl);
+      this.ov.style.cursor = "pointer";
+      return;
+    }
+
+    this.hideAreaFlowMenu(false);
     const hit = this.findPointAt(x, y);
     this.didDrag = false;
     if (hit) {
@@ -599,11 +803,26 @@ class GradiatorApp {
       p.y = Math.max(0, Math.min(1, this.pointStart.y + dy / this.H));
       this.render(true);
     } else {
-      const h = this.findPointAt(x, y);
-      const same = h && this.hovered && h.row === this.hovered.row && h.col === this.hovered.col;
-      if (!same) {
-        this.hovered = h;
-        this.ov.style.cursor = h ? "grab" : "crosshair";
+      const areaControl = this.findAreaFlowControlAt(x, y);
+      const hoveredPoint = areaControl ? null : this.findPointAt(x, y);
+      const samePoint =
+        (!hoveredPoint && !this.hovered) ||
+        (Boolean(hoveredPoint) &&
+          Boolean(this.hovered) &&
+          hoveredPoint?.row === this.hovered?.row &&
+          hoveredPoint?.col === this.hovered?.col);
+      const nextHoveredArea = areaControl ? { row: areaControl.row, col: areaControl.col } : null;
+      const sameArea =
+        (!nextHoveredArea && !this.hoveredAreaFlowControl) ||
+        (Boolean(nextHoveredArea) &&
+          Boolean(this.hoveredAreaFlowControl) &&
+          nextHoveredArea?.row === this.hoveredAreaFlowControl?.row &&
+          nextHoveredArea?.col === this.hoveredAreaFlowControl?.col);
+
+      if (!samePoint || !sameArea) {
+        this.hovered = hoveredPoint;
+        this.hoveredAreaFlowControl = nextHoveredArea;
+        this.ov.style.cursor = areaControl ? "pointer" : hoveredPoint ? "grab" : "crosshair";
         this.renderOverlay();
       }
     }
@@ -623,12 +842,18 @@ class GradiatorApp {
     this.dragging = null;
     this.dragStart = null;
     this.pointStart = null;
-    this.ov.style.cursor = this.hovered ? "grab" : "crosshair";
+    this.ov.style.cursor = this.hoveredAreaFlowControl
+      ? "pointer"
+      : this.hovered
+        ? "grab"
+        : "crosshair";
   };
 
   _onOverlayDoubleClick = (e: MouseEvent) => {
     this._cancelPickerTimer();
     const { x, y } = this.getMousePos(e);
+    const areaControl = this.findAreaFlowControlAt(x, y);
+    if (areaControl) return;
     const hit = this.findPointAt(x, y);
     if (hit) {
       if (e.altKey) {
@@ -653,8 +878,34 @@ class GradiatorApp {
       this.render(false);
     }
     this.hovered = null;
+    this.hoveredAreaFlowControl = null;
     this.ov.style.cursor = "crosshair";
     this.renderOverlay();
+  };
+
+  _onAreaFlowMenuMouseDown = (e: MouseEvent) => {
+    e.stopPropagation();
+  };
+
+  _onAreaFlowMenuClick = (e: MouseEvent) => {
+    const target = e.target;
+    if (!(target instanceof HTMLElement)) return;
+    const button = target.closest<HTMLButtonElement>("button[data-flow-mode-index]");
+    if (!button || !this.activeAreaFlowControl) return;
+
+    const modeIndex = Number(button.dataset.flowModeIndex);
+    if (!Number.isInteger(modeIndex)) return;
+
+    this.setAreaFlowMode(this.activeAreaFlowControl.row, this.activeAreaFlowControl.col, modeIndex);
+    this.render();
+  };
+
+  _onDocumentMouseDown = (e: MouseEvent) => {
+    if (this.areaFlowMenu.hidden) return;
+    const target = e.target;
+    if (target instanceof Node && this.areaFlowMenu.contains(target)) return;
+    if (target === this.ov) return;
+    this.hideAreaFlowMenu();
   };
 
   _onDocumentKeyDown = (e: KeyboardEvent) => {
@@ -663,6 +914,7 @@ class GradiatorApp {
       this._stopPanelDrag();
       this._stopPreviewDrag();
       this.colorPicker.hide();
+      this.hideAreaFlowMenu(false);
       this.selected = null;
       if (this.fullView) this.toggleFullView();
       this.renderOverlay();
@@ -675,12 +927,16 @@ class GradiatorApp {
     this.ov.addEventListener("mouseup", this._onOverlayMouseUp);
     this.ov.addEventListener("dblclick", this._onOverlayDoubleClick);
     this.ov.addEventListener("mouseleave", this._onOverlayMouseLeave);
+    this.areaFlowMenu.addEventListener("mousedown", this._onAreaFlowMenuMouseDown);
+    this.areaFlowMenuOptions.addEventListener("click", this._onAreaFlowMenuClick);
+    document.addEventListener("mousedown", this._onDocumentMouseDown);
     document.addEventListener("keydown", this._onDocumentKeyDown);
   }
 
   _onGridButtonClick = () => {
     this.showGrid = !this.showGrid;
     this.gridButton.classList.toggle("active", this.showGrid);
+    if (!this.showGrid) this.hideAreaFlowMenu(false);
     this.renderOverlay();
   };
 
@@ -749,6 +1005,7 @@ class GradiatorApp {
       this._stopPanelDrag();
       this._stopPreviewDrag();
       this.colorPicker.hide();
+      this.hideAreaFlowMenu(false);
     }
     document.body.classList.toggle("ui-hidden", this.uiHidden);
     this.uiToggleButton.classList.toggle("active", this.uiHidden);
@@ -774,12 +1031,13 @@ class GradiatorApp {
   }
 
   cycleFlowMode() {
-    this.applyFlowMode((this.flowModeIndex + 1) % this.flowModes.length);
+    this.applyFlowModeToAll((this.defaultFlowModeIndex + 1) % this.flowModes.length);
     this.render();
   }
 
   toggleFullView() {
     this._stopPreviewDrag();
+    this.hideAreaFlowMenu(false);
     this.fullView = !this.fullView;
     document.body.classList.toggle("preview-full", this.fullView);
     const btn = this.previewViewBtn;
@@ -935,6 +1193,9 @@ class GradiatorApp {
     this.ov.removeEventListener("mouseup", this._onOverlayMouseUp);
     this.ov.removeEventListener("dblclick", this._onOverlayDoubleClick);
     this.ov.removeEventListener("mouseleave", this._onOverlayMouseLeave);
+    this.areaFlowMenu.removeEventListener("mousedown", this._onAreaFlowMenuMouseDown);
+    this.areaFlowMenuOptions.removeEventListener("click", this._onAreaFlowMenuClick);
+    document.removeEventListener("mousedown", this._onDocumentMouseDown);
     document.removeEventListener("keydown", this._onDocumentKeyDown);
 
     this.gridButton.removeEventListener("click", this._onGridButtonClick);
@@ -951,11 +1212,13 @@ class GradiatorApp {
     this.exportButton.removeEventListener("click", this._onExportButtonClick);
 
     this.resizeObserver.disconnect();
+    this.hideAreaFlowMenu(false);
     this.colorPicker.hide();
     this.colorPicker.destroy();
     this.selected = null;
     this.dragging = null;
     this.hovered = null;
+    this.hoveredAreaFlowControl = null;
     this.ov.style.cursor = "crosshair";
     document.body.classList.remove("ui-hidden", "border-hidden", "preview-full");
   }

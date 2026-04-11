@@ -22,6 +22,9 @@ export function GradiatorCanvas() {
   const randomizeButtonRef = useRef<HTMLButtonElement>(null);
   const colorButtonRef = useRef<HTMLButtonElement>(null);
   const exportButtonRef = useRef<HTMLButtonElement>(null);
+  const areaFlowMenuRef = useRef<HTMLDivElement>(null);
+  const areaFlowMenuTitleRef = useRef<HTMLDivElement>(null);
+  const areaFlowMenuOptionsRef = useRef<HTMLDivElement>(null);
   const previewFrameRef = useRef<HTMLDivElement>(null);
   const previewMoveButtonRef = useRef<HTMLButtonElement>(null);
   const previewViewButtonRef = useRef<HTMLButtonElement>(null);
@@ -51,6 +54,9 @@ export function GradiatorCanvas() {
     const randomizeButton = randomizeButtonRef.current;
     const colorButton = colorButtonRef.current;
     const exportButton = exportButtonRef.current;
+    const areaFlowMenu = areaFlowMenuRef.current;
+    const areaFlowMenuTitle = areaFlowMenuTitleRef.current;
+    const areaFlowMenuOptions = areaFlowMenuOptionsRef.current;
     const previewFrame = previewFrameRef.current;
     const previewMoveButton = previewMoveButtonRef.current;
     const previewViewButton = previewViewButtonRef.current;
@@ -80,6 +86,9 @@ export function GradiatorCanvas() {
       !randomizeButton ||
       !colorButton ||
       !exportButton ||
+      !areaFlowMenu ||
+      !areaFlowMenuTitle ||
+      !areaFlowMenuOptions ||
       !previewFrame ||
       !previewMoveButton ||
       !previewViewButton ||
@@ -116,6 +125,9 @@ export function GradiatorCanvas() {
       colorButton,
       randomizeButton,
       exportButton,
+      areaFlowMenu,
+      areaFlowMenuTitle,
+      areaFlowMenuOptions,
       colorPickerPanel,
       colorPickerSvWrap,
       colorPickerSvCanvas,
@@ -160,6 +172,12 @@ export function GradiatorCanvas() {
           viewButtonRef={previewViewButtonRef}
           canvasRef={previewCanvasRef}
         />
+        <div id="area-flow-menu" ref={areaFlowMenuRef} hidden>
+          <div className="area-flow-menu-title" ref={areaFlowMenuTitleRef}>
+            Area Flow
+          </div>
+          <div className="area-flow-menu-options" ref={areaFlowMenuOptionsRef}></div>
+        </div>
       </div>
 
       <div id="cp-panel" ref={colorPickerPanelRef}>

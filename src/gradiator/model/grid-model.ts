@@ -1,6 +1,6 @@
 import { bilerp, inverseBilinear } from "../../utils/interpolation.js";
 import { clamp, lerp } from "../../utils/math.js";
-import type { GradientPoint, GridIndex, Point2D } from "../types";
+import type { GradientPoint, GridAreaIndex, GridIndex, Point2D } from "../types";
 
 type GridColorSample = {
   r: number;
@@ -15,6 +15,11 @@ type AddGridPointOptions = {
   width: number;
   height: number;
   sampleColor: (u: number, v: number) => GridColorSample;
+};
+
+export type AddGridPointResult = {
+  insertedPoint: GridIndex;
+  splitCell: GridAreaIndex;
 };
 
 type GridCellHit = {
@@ -143,7 +148,7 @@ export function addGridPointAt({
   width,
   height,
   sampleColor,
-}: AddGridPointOptions): GridIndex | null {
+}: AddGridPointOptions): AddGridPointResult | null {
   const u = x / width;
   const v = y / height;
   const cell = findGridCellAt(grid, u, v);
@@ -168,7 +173,10 @@ export function addGridPointAt({
     b: color.b,
   };
 
-  return { row: insertedRow, col: insertedCol };
+  return {
+    insertedPoint: { row: insertedRow, col: insertedCol },
+    splitCell: { row: cell.row, col: cell.col },
+  };
 }
 
 function findGridCellAt(grid: GradientPoint[][], u: number, v: number): GridCellHit | null {

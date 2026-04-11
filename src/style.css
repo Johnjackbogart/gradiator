@@ -255,6 +255,49 @@ body {
   border-radius: 5px;
 }
 
+#area-flow-menu {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 32;
+  min-width: 180px;
+  padding: 10px;
+  border-radius: var(--ui-radius);
+  background: rgba(8, 8, 8, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow:
+    0 18px 42px rgba(0, 0, 0, 0.42),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(6px);
+}
+
+.area-flow-menu-title {
+  margin-bottom: 8px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.area-flow-menu-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+#area-flow-menu .btn {
+  justify-content: center;
+  min-height: 34px;
+  border-radius: 5px;
+  font-size: 12px;
+}
+
+#area-flow-menu .btn.active {
+  border-color: rgba(255, 255, 255, 0.48);
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+
 .btn {
   background: rgba(255, 255, 255, 0.07);
   border: 1px solid rgba(255, 255, 255, 0.1);

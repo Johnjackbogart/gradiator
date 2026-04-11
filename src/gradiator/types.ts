@@ -11,6 +11,11 @@ export type GridIndex = {
   col: number;
 };
 
+export type GridAreaIndex = {
+  row: number;
+  col: number;
+};
+
 export type Point2D = {
   x: number;
   y: number;
@@ -48,6 +53,13 @@ export type FlowGridLines = {
   across: FlowLinePoint[][];
 };
 
+export type AreaFlowControl = GridAreaIndex & {
+  x: number;
+  y: number;
+  radius: number;
+  modeIndex: number;
+};
+
 export type PanelDragState = {
   element: HTMLDivElement;
   handle: HTMLButtonElement;
@@ -73,6 +85,7 @@ export type SerializedGradiatorState = {
   rows: number;
   cols: number;
   flow: number;
+  flows?: number[];
   aspect: AspectMode["key"];
   points: number[];
 };
@@ -98,6 +111,9 @@ export type GradiatorAppElements = {
   colorButton: HTMLButtonElement;
   randomizeButton: HTMLButtonElement;
   exportButton: HTMLButtonElement;
+  areaFlowMenu: HTMLDivElement;
+  areaFlowMenuTitle: HTMLDivElement;
+  areaFlowMenuOptions: HTMLDivElement;
   colorPickerPanel: HTMLDivElement;
   colorPickerSvWrap: HTMLDivElement;
   colorPickerSvCanvas: HTMLCanvasElement;

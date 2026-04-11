@@ -8,6 +8,13 @@ type FlowVector = {
   dv: number;
 };
 
+export type FlowBounds = {
+  uMin: number;
+  uMax: number;
+  vMin: number;
+  vMax: number;
+};
+
 type SampleInterpolatedField = (u: number, v: number, blend: number) => GradientPoint;
 type SampleTensorDirection = (u: number, v: number, orthogonal?: boolean) => FlowVector | null;
 type SampleField = (u: number, v: number) => GradientPoint;
@@ -19,6 +26,7 @@ type SampleFieldForModeOptions = {
   v: number;
   sampleInterpolatedField: SampleInterpolatedField;
   sampleModeVector: (u: number, v: number) => FlowVector | null;
+  bounds?: FlowBounds;
 };
 
 type SampleFlowDirectionForModeOptions = {
@@ -154,17 +162,22 @@ export function sampleFlowSource(
   u: number,
   v: number,
   sampleModeVectorAt: (u: number, v: number) => FlowVector | null,
+  bounds?: FlowBounds,
 ) {
   let sourceU = u;
   let sourceV = v;
   const steps = Math.max(1, mode.steps || 1);
   const stepSize = (mode.strength || 0) / steps;
+  const uMin = bounds?.uMin ?? 0;
+  const uMax = bounds?.uMax ?? 1;
+  const vMin = bounds?.vMin ?? 0;
+  const vMax = bounds?.vMax ?? 1;
 
   for (let i = 0; i < steps; i++) {
     const direction = sampleModeVectorAt(sourceU, sourceV);
     if (!direction) break;
-    sourceU = clamp(sourceU - direction.du * stepSize, 0, 1);
-    sourceV = clamp(sourceV - direction.dv * stepSize, 0, 1);
+    sourceU = clamp(sourceU - direction.du * stepSize, uMin, uMax);
+    sourceV = clamp(sourceV - direction.dv * stepSize, vMin, vMax);
   }
 
   return { u: sourceU, v: sourceV };
@@ -176,11 +189,12 @@ export function sampleFieldForMode({
   v,
   sampleInterpolatedField,
   sampleModeVector,
+  bounds,
 }: SampleFieldForModeOptions) {
   const base = sampleInterpolatedField(u, v, mode.blend);
   if (mode.kind !== "advect") return base;
 
-  const source = sampleFlowSource(mode, u, v, sampleModeVector);
+  const source = sampleFlowSource(mode, u, v, sampleModeVector, bounds);
   const flowed = sampleInterpolatedField(source.u, source.v, mode.blend);
   return { x: base.x, y: base.y, r: flowed.r, g: flowed.g, b: flowed.b };
 }
