@@ -108,6 +108,7 @@ export type GradiatorAppElements = {
   gridButton: HTMLButtonElement;
   flowButton: HTMLButtonElement;
   aspectButton: HTMLButtonElement;
+  animateButton: HTMLButtonElement;
   colorButton: HTMLButtonElement;
   randomizeButton: HTMLButtonElement;
   exportButton: HTMLButtonElement;

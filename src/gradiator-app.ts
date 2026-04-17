@@ -77,6 +77,7 @@ class GradiatorApp {
   readonly gridButton: HTMLButtonElement;
   readonly flowButton: HTMLButtonElement;
   readonly aspectButton: HTMLButtonElement;
+  readonly animateButton: HTMLButtonElement;
   readonly colorButton: HTMLButtonElement;
   readonly randomizeButton: HTMLButtonElement;
   readonly exportButton: HTMLButtonElement;
@@ -105,6 +106,7 @@ class GradiatorApp {
   aspectModeIndex = 3;
   lastSerializedState = "";
   grid: GradientPoint[][] = [];
+  displayGrid: GradientPoint[][] = [];
   flowModeGrid: number[][] = [];
   selected: GridIndex | null = null;
   dragging: GridIndex | null = null;
@@ -123,9 +125,12 @@ class GradiatorApp {
   W = 0;
   H = 0;
   dragStart: Point2D | null = null;
-  pointStart: Point2D | null = null;
+  dragPointerOffset: Point2D | null = null;
   didDrag = false;
   pickerTimer: number | null = null;
+  animatePoints = false;
+  animationTimeMs = 0;
+  animationFrame: number | null = null;
 
   constructor(elements: GradiatorAppElements) {
     this.container = elements.container;
@@ -145,6 +150,7 @@ class GradiatorApp {
     this.gridButton = elements.gridButton;
     this.flowButton = elements.flowButton;
     this.aspectButton = elements.aspectButton;
+    this.animateButton = elements.animateButton;
     this.colorButton = elements.colorButton;
     this.randomizeButton = elements.randomizeButton;
     this.exportButton = elements.exportButton;
@@ -198,6 +204,7 @@ class GradiatorApp {
     this.setDefaultFlowMode(this.defaultFlowModeIndex);
     this.restoreStateFromUrl();
     this.applyAspectMode(this.aspectModeIndex);
+    this.setPointAnimationEnabled(false);
     this.setupEvents();
     this.setupButtons();
     this.resize();
@@ -233,6 +240,7 @@ class GradiatorApp {
 
   initPoints() {
     this.grid = createInitialGrid(this.ROWS, this.COLS);
+    this.displayGrid = this.grid;
   }
 
   initFlowModeGrid(modeIndex = this.defaultFlowModeIndex) {
@@ -255,6 +263,7 @@ class GradiatorApp {
   syncGridDimensions() {
     this.ROWS = this.grid.length;
     this.COLS = this.grid[0]?.length ?? 0;
+    this.displayGrid = this.grid;
     this.flowRuntimeGrid = [];
     this.areaFlowControls = [];
   }
@@ -313,7 +322,107 @@ class GradiatorApp {
     return width / height;
   }
 
-  buildFlowRuntimeGrid() {
+  getDisplayGrid() {
+    return this.displayGrid.length ? this.displayGrid : this.grid;
+  }
+
+  getDisplayPoint(row: number, col: number) {
+    return this.getDisplayGrid()[row]?.[col] ?? this.grid[row][col];
+  }
+
+  isCornerPoint(row: number, col: number) {
+    const lastRow = this.ROWS - 1;
+    const lastCol = this.COLS - 1;
+    return (row === 0 || row === lastRow) && (col === 0 || col === lastCol);
+  }
+
+  getPointAnimationOffset(row: number, col: number, timeMs = this.animationTimeMs) {
+    if (!this.animatePoints || this.isCornerPoint(row, col) || !this.W || !this.H) {
+      return { x: 0, y: 0 };
+    }
+
+    const horizontalFreedom = col > 0 && col < this.COLS - 1 ? 1 : 0.24;
+    const verticalFreedom = row > 0 && row < this.ROWS - 1 ? 1 : 0.24;
+    const spanX = this.W / Math.max(1, this.COLS - 1);
+    const spanY = this.H / Math.max(1, this.ROWS - 1);
+    const amplitudeX = (clamp(spanX * 0.22, 5, 18) * horizontalFreedom) / Math.max(1, this.W);
+    const amplitudeY = (clamp(spanY * 0.22, 5, 18) * verticalFreedom) / Math.max(1, this.H);
+    const time = timeMs * 0.001;
+    const phase = row * 1.73 + col * 2.11;
+    const secondaryPhase = row * 2.41 - col * 1.37;
+    const speedX = 0.52 + ((row + col) % 5) * 0.07;
+    const speedY = 0.64 + ((row * 2 + col) % 4) * 0.06;
+
+    return {
+      x:
+        amplitudeX *
+        (Math.sin(time * speedX * Math.PI * 2 + phase) * 0.7 +
+          Math.cos(time * speedX * Math.PI + secondaryPhase) * 0.3),
+      y:
+        amplitudeY *
+        (Math.cos(time * speedY * Math.PI * 2 + secondaryPhase) * 0.7 +
+          Math.sin(time * speedY * Math.PI + phase) * 0.3),
+    };
+  }
+
+  buildAnimatedGrid(timeMs = this.animationTimeMs) {
+    return this.grid.map((row, rowIndex) =>
+      row.map((point, colIndex) => {
+        const offset = this.getPointAnimationOffset(rowIndex, colIndex, timeMs);
+        return {
+          x: clamp(point.x + offset.x, 0, 1),
+          y: clamp(point.y + offset.y, 0, 1),
+          r: point.r,
+          g: point.g,
+          b: point.b,
+        };
+      }),
+    );
+  }
+
+  refreshDisplayGrid(timeMs = this.animationTimeMs) {
+    this.displayGrid = this.animatePoints ? this.buildAnimatedGrid(timeMs) : this.grid;
+  }
+
+  setPointAnimationEnabled(enabled: boolean) {
+    this.animatePoints = Boolean(enabled);
+    this.animateButton.classList.toggle("active", this.animatePoints);
+    this.animateButton.setAttribute("aria-pressed", String(this.animatePoints));
+    this.animateButton.textContent = this.animatePoints ? "Animate: On" : "Animate: Off";
+
+    if (this.animatePoints) {
+      this.animationTimeMs = performance.now();
+      this.refreshDisplayGrid(this.animationTimeMs);
+      if (this.animationFrame === null) {
+        this.animationFrame = window.requestAnimationFrame(this._animatePoints);
+      }
+    } else {
+      if (this.animationFrame !== null) {
+        window.cancelAnimationFrame(this.animationFrame);
+        this.animationFrame = null;
+      }
+      this.animationTimeMs = 0;
+      this.refreshDisplayGrid(0);
+    }
+  }
+
+  togglePointAnimation() {
+    this.setPointAnimationEnabled(!this.animatePoints);
+    this.render(false, true);
+  }
+
+  _animatePoints = (timeMs: number) => {
+    if (!this.animatePoints) {
+      this.animationFrame = null;
+      return;
+    }
+
+    this.animationTimeMs = timeMs;
+    this.render(Boolean(this.dragging), false);
+    this.animationFrame = window.requestAnimationFrame(this._animatePoints);
+  };
+
+  buildFlowRuntimeGrid(grid = this.getDisplayGrid()) {
     const runtimes: FlowRuntime[][] = [];
 
     for (let row = 0; row < this.ROWS - 1; row++) {
@@ -321,8 +430,8 @@ class GradiatorApp {
       for (let col = 0; col < this.COLS - 1; col++) {
         runtimeRow.push(
           buildFlowRuntimeFromEngine([
-            [this.grid[row][col], this.grid[row][col + 1]],
-            [this.grid[row + 1][col], this.grid[row + 1][col + 1]],
+            [grid[row][col], grid[row][col + 1]],
+            [grid[row + 1][col], grid[row + 1][col + 1]],
           ]),
         );
       }
@@ -333,7 +442,8 @@ class GradiatorApp {
   }
 
   getFlowRuntime(row: number, col: number) {
-    return this.flowRuntimeGrid[row]?.[col] ?? buildFlowRuntimeFromEngine(this.grid);
+    const grid = this.getDisplayGrid();
+    return this.flowRuntimeGrid[row]?.[col] ?? buildFlowRuntimeFromEngine(grid);
   }
 
   getAreaAtPosition(u: number, v: number) {
@@ -397,6 +507,7 @@ class GradiatorApp {
         if (aspectModeIndex >= 0) this.aspectModeIndex = aspectModeIndex;
       }
       this.updateAreaFlowMenuButtons();
+      this.displayGrid = this.grid;
       this.lastSerializedState = encoded;
     } catch (error) {
       console.warn("Failed to restore canvas state from URL", error);
@@ -427,7 +538,7 @@ class GradiatorApp {
   }
 
   sampleInterpolatedField(u, v, blend) {
-    return sampleInterpolatedFieldFromGrid(this.grid, u, v, blend);
+    return sampleInterpolatedFieldFromGrid(this.getDisplayGrid(), u, v, blend);
   }
 
   sampleModeVector(field, u, v, area: GridAreaIndex | null = this.getAreaAtPosition(u, v)) {
@@ -463,11 +574,11 @@ class GradiatorApp {
   }
 
   sampleLinearField(u, v) {
-    return sampleLinearFieldFromGrid(this.grid, u, v);
+    return sampleLinearFieldFromGrid(this.getDisplayGrid(), u, v);
   }
 
   sampleSmoothField(u, v) {
-    return sampleSmoothFieldFromGrid(this.grid, u, v);
+    return sampleSmoothFieldFromGrid(this.getDisplayGrid(), u, v);
   }
 
   sampleColor(u, v) {
@@ -519,6 +630,8 @@ class GradiatorApp {
   }
 
   getFlowGridLines() {
+    if (this.animatePoints) return this.buildFlowGridLines();
+
     const stateKey = `${this.serializeState()}|${this.W}|${this.H}|${this.dragging ? "drag" : "idle"}`;
     if (!this.flowGridCache || this.flowGridCache.key !== stateKey) {
       this.flowGridCache = { key: stateKey, lines: this.buildFlowGridLines() };
@@ -548,21 +661,32 @@ class GradiatorApp {
     this.render();
   }
 
-  render(isDragging = false) {
-    this.flowRuntimeGrid = this.buildFlowRuntimeGrid();
+  render(isDragging = false, syncState = !isDragging) {
+    this.refreshDisplayGrid(this.animationTimeMs);
+    const displayGrid = this.getDisplayGrid();
+    this.flowRuntimeGrid = this.buildFlowRuntimeGrid(displayGrid);
     this.areaFlowControls = buildAreaFlowControls({
       width: this.W,
       height: this.H,
-      grid: this.grid,
+      grid: displayGrid,
       flowModeGrid: this.flowModeGrid,
     });
-    this.renderGL(isDragging ? this.SUBS_LO : this.SUBS_HI);
+    this.renderGL(isDragging ? this.SUBS_LO : this.animatePoints ? 20 : this.SUBS_HI, displayGrid);
     this.renderPreview();
-    this.renderOverlay();
-    if (!isDragging) this.syncUrlState();
+    this.renderOverlay(displayGrid);
+
+    if (this.activeAreaFlowControl) {
+      const activeControl = this.areaFlowControls.find(
+        (control) =>
+          control.row === this.activeAreaFlowControl?.row && control.col === this.activeAreaFlowControl?.col,
+      );
+      if (activeControl) this.positionAreaFlowMenu(activeControl);
+    }
+
+    if (syncState) this.syncUrlState();
   }
 
-  renderGL(S) {
+  renderGL(S, grid = this.getDisplayGrid()) {
     renderGlMesh({
       gl: this.gl,
       program: this.prog,
@@ -572,18 +696,18 @@ class GradiatorApp {
       colBuf: this.colBuf,
       width: this.glCanvas.width,
       height: this.glCanvas.height,
-      grid: this.grid,
+      grid,
       subdivisions: S,
       sampleField: (u, v) => this.sampleField(u, v),
     });
   }
 
-  renderOverlay() {
+  renderOverlay(grid = this.getDisplayGrid()) {
     renderOverlayCanvas({
       ctx: this.ctx,
       width: this.W,
       height: this.H,
-      grid: this.grid,
+      grid,
       showGrid: this.showGrid,
       flowLines: this.getFlowGridLines(),
       areaFlowControls: this.areaFlowControls,
@@ -725,13 +849,6 @@ class GradiatorApp {
     this.clampFloatingPanel(this.toolbar);
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     this.render();
-    if (this.activeAreaFlowControl) {
-      const activeControl = this.areaFlowControls.find(
-        (control) =>
-          control.row === this.activeAreaFlowControl?.row && control.col === this.activeAreaFlowControl?.col,
-      );
-      if (activeControl) this.positionAreaFlowMenu(activeControl);
-    }
   }
 
   getMousePos(e) {
@@ -740,14 +857,15 @@ class GradiatorApp {
   }
 
   findPointAt(mx, my, R = 14) {
-    return findGridPointAt(this.grid, this.W, this.H, mx, my, R);
+    return findGridPointAt(this.getDisplayGrid(), this.W, this.H, mx, my, R);
   }
 
   openPickerFor(rc) {
     this.colorMode = "point";
-    const p = this.grid[rc.row][rc.col];
+    const p = this.getDisplayPoint(rc.row, rc.col);
+    const basePoint = this.grid[rc.row][rc.col];
     const rect = this.ov.getBoundingClientRect();
-    this.colorPicker.show(p.x * this.W + rect.left, p.y * this.H + rect.top, p.r, p.g, p.b);
+    this.colorPicker.show(p.x * this.W + rect.left, p.y * this.H + rect.top, basePoint.r, basePoint.g, basePoint.b);
   }
 
   openGradientPicker() {
@@ -783,7 +901,10 @@ class GradiatorApp {
       this.dragging = hit;
       this.selected = hit;
       this.dragStart = { x, y };
-      this.pointStart = { x: this.grid[hit.row][hit.col].x, y: this.grid[hit.row][hit.col].y };
+      this.dragPointerOffset = {
+        x: this.getDisplayPoint(hit.row, hit.col).x - x / Math.max(1, this.W),
+        y: this.getDisplayPoint(hit.row, hit.col).y - y / Math.max(1, this.H),
+      };
       this.ov.style.cursor = "grabbing";
     } else {
       this.selected = null;
@@ -794,14 +915,21 @@ class GradiatorApp {
 
   _onOverlayMouseMove = (e: MouseEvent) => {
     const { x, y } = this.getMousePos(e);
-    if (this.dragging && this.dragStart && this.pointStart) {
+    if (this.dragging && this.dragPointerOffset && this.dragStart) {
+      const draggedPoint = this.grid[this.dragging.row][this.dragging.col];
+      const targetX = x / Math.max(1, this.W) + this.dragPointerOffset.x;
+      const targetY = y / Math.max(1, this.H) + this.dragPointerOffset.y;
+      const animationOffset = this.getPointAnimationOffset(
+        this.dragging.row,
+        this.dragging.col,
+        this.animatePoints ? performance.now() : 0,
+      );
       const dx = x - this.dragStart.x;
       const dy = y - this.dragStart.y;
       if (Math.abs(dx) > 3 || Math.abs(dy) > 3) this.didDrag = true;
-      const p = this.grid[this.dragging.row][this.dragging.col];
-      p.x = Math.max(0, Math.min(1, this.pointStart.x + dx / this.W));
-      p.y = Math.max(0, Math.min(1, this.pointStart.y + dy / this.H));
-      this.render(true);
+      draggedPoint.x = clamp(targetX - animationOffset.x, 0, 1);
+      draggedPoint.y = clamp(targetY - animationOffset.y, 0, 1);
+      this.render(true, false);
     } else {
       const areaControl = this.findAreaFlowControlAt(x, y);
       const hoveredPoint = areaControl ? null : this.findPointAt(x, y);
@@ -841,7 +969,7 @@ class GradiatorApp {
     }
     this.dragging = null;
     this.dragStart = null;
-    this.pointStart = null;
+    this.dragPointerOffset = null;
     this.ov.style.cursor = this.hoveredAreaFlowControl
       ? "pointer"
       : this.hovered
@@ -874,7 +1002,7 @@ class GradiatorApp {
     if (this.dragging) {
       this.dragging = null;
       this.dragStart = null;
-      this.pointStart = null;
+      this.dragPointerOffset = null;
       this.render(false);
     }
     this.hovered = null;
@@ -913,9 +1041,15 @@ class GradiatorApp {
       this._cancelPickerTimer();
       this._stopPanelDrag();
       this._stopPreviewDrag();
+      this.dragStart = null;
+      this.dragPointerOffset = null;
+      this.dragging = null;
+      this.hovered = null;
+      this.hoveredAreaFlowControl = null;
       this.colorPicker.hide();
       this.hideAreaFlowMenu(false);
       this.selected = null;
+      this.ov.style.cursor = "crosshair";
       if (this.fullView) this.toggleFullView();
       this.renderOverlay();
     }
@@ -964,6 +1098,10 @@ class GradiatorApp {
     this.cycleAspectMode();
   };
 
+  _onAnimateButtonClick = () => {
+    this.togglePointAnimation();
+  };
+
   _onRandomizeButtonClick = () => {
     this.randomizeColors();
   };
@@ -992,6 +1130,7 @@ class GradiatorApp {
     this.uiToggleButton.addEventListener("click", this._onUiToggleClick);
     this.flowButton.addEventListener("click", this._onFlowButtonClick);
     this.aspectButton.addEventListener("click", this._onAspectButtonClick);
+    this.animateButton.addEventListener("click", this._onAnimateButtonClick);
     this.randomizeButton.addEventListener("click", this._onRandomizeButtonClick);
     this.colorButton.addEventListener("click", this._onColorButtonClick);
     this.previewViewBtn.addEventListener("click", this._onPreviewViewClick);
@@ -1179,7 +1318,8 @@ class GradiatorApp {
   }
 
   exportPng() {
-    this.renderGL(this.SUBS_HI);
+    this.refreshDisplayGrid(this.animatePoints ? performance.now() : this.animationTimeMs);
+    this.renderGL(this.SUBS_HI, this.getDisplayGrid());
     downloadCanvasAsPng(this.glCanvas);
   }
 
@@ -1187,6 +1327,7 @@ class GradiatorApp {
     this._cancelPickerTimer();
     this._stopPanelDrag();
     this._stopPreviewDrag();
+    this.setPointAnimationEnabled(false);
 
     this.ov.removeEventListener("mousedown", this._onOverlayMouseDown);
     this.ov.removeEventListener("mousemove", this._onOverlayMouseMove);
@@ -1205,6 +1346,7 @@ class GradiatorApp {
     this.uiToggleButton.removeEventListener("click", this._onUiToggleClick);
     this.flowButton.removeEventListener("click", this._onFlowButtonClick);
     this.aspectButton.removeEventListener("click", this._onAspectButtonClick);
+    this.animateButton.removeEventListener("click", this._onAnimateButtonClick);
     this.randomizeButton.removeEventListener("click", this._onRandomizeButtonClick);
     this.colorButton.removeEventListener("click", this._onColorButtonClick);
     this.previewViewBtn.removeEventListener("click", this._onPreviewViewClick);
@@ -1217,6 +1359,8 @@ class GradiatorApp {
     this.colorPicker.destroy();
     this.selected = null;
     this.dragging = null;
+    this.dragStart = null;
+    this.dragPointerOffset = null;
     this.hovered = null;
     this.hoveredAreaFlowControl = null;
     this.ov.style.cursor = "crosshair";

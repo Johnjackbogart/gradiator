@@ -6,6 +6,7 @@ type ToolbarProps = {
   gridButtonRef: RefObject<HTMLButtonElement | null>;
   flowButtonRef: RefObject<HTMLButtonElement | null>;
   aspectButtonRef: RefObject<HTMLButtonElement | null>;
+  animateButtonRef: RefObject<HTMLButtonElement | null>;
   randomizeButtonRef: RefObject<HTMLButtonElement | null>;
   colorButtonRef: RefObject<HTMLButtonElement | null>;
   exportButtonRef: RefObject<HTMLButtonElement | null>;
@@ -17,6 +18,7 @@ export function Toolbar({
   gridButtonRef,
   flowButtonRef,
   aspectButtonRef,
+  animateButtonRef,
   randomizeButtonRef,
   colorButtonRef,
   exportButtonRef,
@@ -42,6 +44,9 @@ export function Toolbar({
           </button>
           <button className="btn active" id="btn-aspect" type="button" ref={aspectButtonRef}>
             Aspect: Browser
+          </button>
+          <button className="btn" id="btn-animate" type="button" aria-pressed="false" ref={animateButtonRef}>
+            Animate: Off
           </button>
           <button className="btn" id="btn-randomize" type="button" ref={randomizeButtonRef}>
             ↻ Randomize
