@@ -652,6 +652,10 @@ body.preview-full #preview-canvas {
     align-items: flex-start;
   }
 
+  #mobile-toolbar-wrap > #ui-controls .ui-buttons {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
   .toolbar-content {
     flex-wrap: wrap;
     gap: 10px;
