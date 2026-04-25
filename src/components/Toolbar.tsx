@@ -3,7 +3,6 @@ import type { RefObject } from "react";
 type ToolbarProps = {
   toolbarRef: RefObject<HTMLDivElement | null>;
   moveButtonRef: RefObject<HTMLButtonElement | null>;
-  flowButtonRef: RefObject<HTMLButtonElement | null>;
   aspectButtonRef: RefObject<HTMLButtonElement | null>;
   animateButtonRef: RefObject<HTMLButtonElement | null>;
   randomizeButtonRef: RefObject<HTMLButtonElement | null>;
@@ -14,7 +13,6 @@ type ToolbarProps = {
 export function Toolbar({
   toolbarRef,
   moveButtonRef,
-  flowButtonRef,
   aspectButtonRef,
   animateButtonRef,
   randomizeButtonRef,
@@ -34,9 +32,6 @@ export function Toolbar({
       </button>
       <div className="toolbar-content">
         <div className="toolbar-controls">
-          <button className="btn active" id="btn-flow" type="button" ref={flowButtonRef}>
-            Flow All: Fluid
-          </button>
           <button className="btn active" id="btn-aspect" type="button" ref={aspectButtonRef}>
             Aspect: Browser
           </button>

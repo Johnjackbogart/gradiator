@@ -19,7 +19,6 @@ export function GradiatorCanvas() {
   const gridButtonRef = useRef<HTMLButtonElement>(null);
   const pointsButtonRef = useRef<HTMLButtonElement>(null);
   const gradientTypesButtonRef = useRef<HTMLButtonElement>(null);
-  const flowButtonRef = useRef<HTMLButtonElement>(null);
   const aspectButtonRef = useRef<HTMLButtonElement>(null);
   const animateButtonRef = useRef<HTMLButtonElement>(null);
   const randomizeButtonRef = useRef<HTMLButtonElement>(null);
@@ -54,7 +53,6 @@ export function GradiatorCanvas() {
     const gridButton = gridButtonRef.current;
     const pointsButton = pointsButtonRef.current;
     const gradientTypesButton = gradientTypesButtonRef.current;
-    const flowButton = flowButtonRef.current;
     const aspectButton = aspectButtonRef.current;
     const animateButton = animateButtonRef.current;
     const randomizeButton = randomizeButtonRef.current;
@@ -89,7 +87,6 @@ export function GradiatorCanvas() {
       !gridButton ||
       !pointsButton ||
       !gradientTypesButton ||
-      !flowButton ||
       !aspectButton ||
       !animateButton ||
       !randomizeButton ||
@@ -131,7 +128,6 @@ export function GradiatorCanvas() {
       gridButton,
       pointsButton,
       gradientTypesButton,
-      flowButton,
       aspectButton,
       animateButton,
       colorButton,
@@ -174,7 +170,6 @@ export function GradiatorCanvas() {
         <Toolbar
           toolbarRef={toolbarRef}
           moveButtonRef={toolbarMoveButtonRef}
-          flowButtonRef={flowButtonRef}
           aspectButtonRef={aspectButtonRef}
           animateButtonRef={animateButtonRef}
           randomizeButtonRef={randomizeButtonRef}

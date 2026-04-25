@@ -1,7 +1,6 @@
 import { clamp } from "../../utils/math.js";
 import {
   collapseFlowModeGridForPointRemoval,
-  fillFlowModeGrid,
   normalizeFlowModeGrid,
   splitFlowModeGrid,
 } from "../model/flow-mode-grid";
@@ -14,14 +13,6 @@ export function withState<TBase extends AppConstructor<any>>(Base: TBase) {
     setDefaultFlowMode(index) {
       const safeIndex = clamp(index, 0, this.flowModes.length - 1);
       this.defaultFlowModeIndex = safeIndex;
-      const mode = this.flowModes[this.defaultFlowModeIndex];
-      if (this.flowButton) this.flowButton.textContent = `Flow All: ${mode.label}`;
-    }
-
-    applyFlowModeToAll(index) {
-      this.setDefaultFlowMode(index);
-      fillFlowModeGrid(this.flowModeGrid, this.defaultFlowModeIndex);
-      this.updateAreaFlowMenuButtons();
     }
 
     getFlowMode(index) {

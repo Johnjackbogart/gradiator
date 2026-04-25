@@ -37,7 +37,6 @@ export class GradiatorAppBase {
   readonly gridButton: HTMLButtonElement;
   readonly pointsButton: HTMLButtonElement;
   readonly gradientTypesButton: HTMLButtonElement;
-  readonly flowButton: HTMLButtonElement;
   readonly aspectButton: HTMLButtonElement;
   readonly animateButton: HTMLButtonElement;
   readonly colorButton: HTMLButtonElement;
@@ -121,7 +120,6 @@ export class GradiatorAppBase {
     this.gridButton = elements.gridButton;
     this.pointsButton = elements.pointsButton;
     this.gradientTypesButton = elements.gradientTypesButton;
-    this.flowButton = elements.flowButton;
     this.aspectButton = elements.aspectButton;
     this.animateButton = elements.animateButton;
     this.colorButton = elements.colorButton;

@@ -181,7 +181,7 @@ body {
 
 #ui-controls {
   position: absolute;
-  top: 16px;
+  bottom: 16px;
   right: 16px;
   z-index: 40;
   display: flex;
@@ -369,7 +369,7 @@ body {
 
 #preview-frame {
   position: absolute;
-  bottom: 16px;
+  top: 16px;
   right: 16px;
   z-index: 12;
   width: min(34vw, 320px);
@@ -497,7 +497,7 @@ body.preview-full #preview-canvas {
   }
 
   #ui-controls {
-    top: 12px;
+    bottom: 12px;
     right: 12px;
   }
 
@@ -520,7 +520,7 @@ body.preview-full #preview-canvas {
 
   #preview-frame {
     right: 12px;
-    bottom: 12px;
+    top: 12px;
     width: min(42vw, 260px);
   }
 }

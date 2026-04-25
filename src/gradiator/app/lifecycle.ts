@@ -26,7 +26,6 @@ export function withLifecycle<TBase extends AppConstructor<any>>(Base: TBase) {
       this.toolbarMoveButton.removeEventListener("mousedown", this._onToolbarMoveMouseDown);
       this.borderToggleButton.removeEventListener("click", this._onBorderToggleClick);
       this.uiToggleButton.removeEventListener("click", this._onUiToggleClick);
-      this.flowButton.removeEventListener("click", this._onFlowButtonClick);
       this.aspectButton.removeEventListener("click", this._onAspectButtonClick);
       this.animateButton.removeEventListener("click", this._onAnimateButtonClick);
       this.randomizeButton.removeEventListener("click", this._onRandomizeButtonClick);

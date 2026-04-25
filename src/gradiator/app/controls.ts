@@ -33,10 +33,6 @@ export function withControls<TBase extends AppConstructor<any>>(Base: TBase) {
       this.toggleUi();
     };
 
-    _onFlowButtonClick = () => {
-      this.cycleFlowMode();
-    };
-
     _onAspectButtonClick = () => {
       this.cycleAspectMode();
     };
@@ -78,7 +74,6 @@ export function withControls<TBase extends AppConstructor<any>>(Base: TBase) {
       this.toolbarMoveButton.addEventListener("mousedown", this._onToolbarMoveMouseDown);
       this.borderToggleButton.addEventListener("click", this._onBorderToggleClick);
       this.uiToggleButton.addEventListener("click", this._onUiToggleClick);
-      this.flowButton.addEventListener("click", this._onFlowButtonClick);
       this.aspectButton.addEventListener("click", this._onAspectButtonClick);
       this.animateButton.addEventListener("click", this._onAnimateButtonClick);
       this.randomizeButton.addEventListener("click", this._onRandomizeButtonClick);
@@ -156,11 +151,6 @@ export function withControls<TBase extends AppConstructor<any>>(Base: TBase) {
 
     toggleBorder() {
       this.setBorderHidden(!this.borderHidden);
-    }
-
-    cycleFlowMode() {
-      this.applyFlowModeToAll((this.defaultFlowModeIndex + 1) % this.flowModes.length);
-      this.render();
     }
 
     toggleFullView() {
