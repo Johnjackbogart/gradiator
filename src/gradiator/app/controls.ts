@@ -38,7 +38,10 @@ export function withControls<TBase extends AppConstructor<any>>(Base: TBase) {
     };
 
     _onMobileToolsToggleClick = () => {
-      const hidden = !document.body.classList.contains("mobile-tools-hidden");
+      this.setMobileToolsHidden(!document.body.classList.contains("mobile-tools-hidden"));
+    };
+
+    setMobileToolsHidden(hidden) {
       document.body.classList.toggle("mobile-tools-hidden", hidden);
       this.mobileToolsToggleButton.setAttribute("aria-expanded", String(!hidden));
       this.mobileToolsToggleButton.setAttribute(
@@ -50,7 +53,14 @@ export function withControls<TBase extends AppConstructor<any>>(Base: TBase) {
         this.colorPicker.hide();
         this.hideAreaFlowMenu(false);
       }
-    };
+    }
+
+    _isMobileViewport() {
+      return (
+        typeof window.matchMedia === "function" &&
+        window.matchMedia("(max-width: 720px)").matches
+      );
+    }
 
     _onAspectButtonClick = () => {
       this.cycleAspectMode();
@@ -58,7 +68,11 @@ export function withControls<TBase extends AppConstructor<any>>(Base: TBase) {
 
     _onAnimateButtonClick = () => {
       if (!this.selected) return;
-      this.setPathDrawingMode(!this.pathDrawingMode);
+      const entering = !this.pathDrawingMode;
+      this.setPathDrawingMode(entering);
+      if (entering && this._isMobileViewport()) {
+        this.setMobileToolsHidden(true);
+      }
     };
 
     _onRandomizeButtonClick = () => {
