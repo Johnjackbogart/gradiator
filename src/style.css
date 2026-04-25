@@ -177,6 +177,13 @@ body {
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: start;
   padding-inline: max(20px, calc(var(--image-inset) - var(--brand-overhang)));
+  pointer-events: none;
+}
+
+#brand-mark .logo-help,
+#brand-mark .logo-help-button,
+#brand-mark .logo-tooltip {
+  pointer-events: auto;
 }
 
 #ui-controls {

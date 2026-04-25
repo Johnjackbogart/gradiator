@@ -134,7 +134,7 @@ export function findGridPointAt(
       const hitRadius = isCorner ? radius + 10 : isEdge ? radius + 5 : radius;
       const dx = mx - grid[row][col].x * width;
       const dy = my - grid[row][col].y * height;
-      if (dx * dx + dy * dy < hitRadius * hitRadius) return { row, col };
+      if (dx * dx + dy * dy <= hitRadius * hitRadius) return { row, col };
     }
   }
 

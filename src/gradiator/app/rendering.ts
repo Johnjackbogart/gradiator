@@ -118,8 +118,13 @@ export function withRendering<TBase extends AppConstructor<any>>(Base: TBase) {
       const menuRect = this.areaFlowMenu.getBoundingClientRect();
       const menuWidth = menuRect.width || 180;
       const menuHeight = menuRect.height || 120;
-      const desiredLeft = this.imageStage.offsetLeft + control.x + control.radius + 12;
-      const desiredTop = this.imageStage.offsetTop + control.y - menuHeight * 0.35;
+      const multiSelection = this.selectedAreaFlowControls.length > 1 || this.selectedPoints.length > 0;
+      const desiredLeft = multiSelection
+        ? this.container.clientWidth - menuWidth - 16
+        : this.imageStage.offsetLeft + control.x + control.radius + 12;
+      const desiredTop = multiSelection
+        ? (this.container.clientHeight - menuHeight) / 2
+        : this.imageStage.offsetTop + control.y - menuHeight * 0.35;
       const maxLeft = Math.max(0, this.container.clientWidth - menuWidth - 8);
       const maxTop = Math.max(0, this.container.clientHeight - menuHeight - 8);
       const left = maxLeft < 8 ? maxLeft : clamp(desiredLeft, 8, maxLeft);
@@ -224,6 +229,14 @@ export function withRendering<TBase extends AppConstructor<any>>(Base: TBase) {
       return { x: e.clientX - r.left, y: e.clientY - r.top };
     }
 
+    getClampedMousePos(e) {
+      const { x, y } = this.getMousePos(e);
+      return {
+        x: clamp(x, 0, Math.max(0, this.W)),
+        y: clamp(y, 0, Math.max(0, this.H)),
+      };
+    }
+
     findPointAt(mx, my, R = 14) {
       if (!this.showPoints) return null;
       return findGridPointAt(this.getDisplayGrid(), this.W, this.H, mx, my, R);
@@ -247,7 +260,11 @@ export function withRendering<TBase extends AppConstructor<any>>(Base: TBase) {
       const p = this.getDisplayPoint(firstPoint.row, firstPoint.col);
       const basePoint = this.grid[firstPoint.row][firstPoint.col];
       const rect = this.ov.getBoundingClientRect();
-      this.colorPicker.show(p.x * this.W + rect.left, p.y * this.H + rect.top, basePoint.r, basePoint.g, basePoint.b);
+      if (points.length > 1 || this.selectedAreaFlowControls.length > 0) {
+        this.colorPicker.show(16, window.innerHeight / 2, basePoint.r, basePoint.g, basePoint.b);
+      } else {
+        this.colorPicker.show(p.x * this.W + rect.left, p.y * this.H + rect.top, basePoint.r, basePoint.g, basePoint.b);
+      }
     }
 
     openGradientPicker() {

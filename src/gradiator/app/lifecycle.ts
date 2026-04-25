@@ -14,6 +14,8 @@ export function withLifecycle<TBase extends AppConstructor<any>>(Base: TBase) {
       this.ov.removeEventListener("mouseup", this._onOverlayMouseUp);
       this.ov.removeEventListener("dblclick", this._onOverlayDoubleClick);
       this.ov.removeEventListener("mouseleave", this._onOverlayMouseLeave);
+      window.removeEventListener("mousemove", this._onWindowMouseMove);
+      window.removeEventListener("mouseup", this._onWindowMouseUp);
       this.areaFlowMenu.removeEventListener("mousedown", this._onAreaFlowMenuMouseDown);
       this.areaFlowMenuOptions.removeEventListener("click", this._onAreaFlowMenuClick);
       document.removeEventListener("mousedown", this._onDocumentMouseDown);
