@@ -17,11 +17,11 @@ export function withControls<TBase extends AppConstructor<any>>(Base: TBase) {
       this.setGradientTypesVisible(!this.showGradientTypes);
     };
 
-    _onUiMoveMouseDown = (e: MouseEvent) => {
+    _onUiMovePointerDown = (e: PointerEvent) => {
       this.startPanelDrag(e, this.uiControls, this.uiMoveButton);
     };
 
-    _onToolbarMoveMouseDown = (e: MouseEvent) => {
+    _onToolbarMovePointerDown = (e: PointerEvent) => {
       this.startPanelDrag(e, this.toolbar, this.toolbarMoveButton);
     };
 
@@ -31,6 +31,25 @@ export function withControls<TBase extends AppConstructor<any>>(Base: TBase) {
 
     _onUiToggleClick = () => {
       this.toggleUi();
+    };
+
+    _onPreviewHideClick = () => {
+      this.togglePreview();
+    };
+
+    _onMobileToolsToggleClick = () => {
+      const hidden = !document.body.classList.contains("mobile-tools-hidden");
+      document.body.classList.toggle("mobile-tools-hidden", hidden);
+      this.mobileToolsToggleButton.setAttribute("aria-expanded", String(!hidden));
+      this.mobileToolsToggleButton.setAttribute(
+        "aria-label",
+        hidden ? "Show controls" : "Hide controls",
+      );
+      if (!hidden) {
+        this._cancelPickerTimer();
+        this.colorPicker.hide();
+        this.hideAreaFlowMenu(false);
+      }
     };
 
     _onAspectButtonClick = () => {
@@ -54,7 +73,7 @@ export function withControls<TBase extends AppConstructor<any>>(Base: TBase) {
       this.toggleFullView();
     };
 
-    _onPreviewMoveMouseDown = (e: MouseEvent) => {
+    _onPreviewMovePointerDown = (e: PointerEvent) => {
       this.startPreviewDrag(e);
     };
 
@@ -97,16 +116,18 @@ export function withControls<TBase extends AppConstructor<any>>(Base: TBase) {
       this.gridButton.addEventListener("click", this._onGridButtonClick);
       this.pointsButton.addEventListener("click", this._onPointsButtonClick);
       this.gradientTypesButton.addEventListener("click", this._onGradientTypesButtonClick);
-      this.uiMoveButton.addEventListener("mousedown", this._onUiMoveMouseDown);
-      this.toolbarMoveButton.addEventListener("mousedown", this._onToolbarMoveMouseDown);
+      this.uiMoveButton.addEventListener("pointerdown", this._onUiMovePointerDown);
+      this.toolbarMoveButton.addEventListener("pointerdown", this._onToolbarMovePointerDown);
       this.borderToggleButton.addEventListener("click", this._onBorderToggleClick);
       this.uiToggleButton.addEventListener("click", this._onUiToggleClick);
+      this.previewHideButton.addEventListener("click", this._onPreviewHideClick);
+      this.mobileToolsToggleButton.addEventListener("click", this._onMobileToolsToggleClick);
       this.aspectButton.addEventListener("click", this._onAspectButtonClick);
       this.animateButton.addEventListener("click", this._onAnimateButtonClick);
       this.randomizeButton.addEventListener("click", this._onRandomizeButtonClick);
       this.colorButton.addEventListener("click", this._onColorButtonClick);
       this.previewViewBtn.addEventListener("click", this._onPreviewViewClick);
-      this.previewMoveBtn.addEventListener("mousedown", this._onPreviewMoveMouseDown);
+      this.previewMoveBtn.addEventListener("pointerdown", this._onPreviewMovePointerDown);
       this.exportButton.addEventListener("click", this._onExportButtonClick);
       this.animationPlayPauseButton.addEventListener("click", this._onAnimationPlayPauseClick);
       this.animationClearButton.addEventListener("click", this._onAnimationClearClick);
@@ -197,6 +218,22 @@ export function withControls<TBase extends AppConstructor<any>>(Base: TBase) {
       this.setBorderHidden(!this.borderHidden);
     }
 
+    setPreviewHidden(hidden) {
+      this.previewHidden = Boolean(hidden);
+      if (this.previewHidden) {
+        this._stopPreviewDrag();
+        if (this.fullView) this.toggleFullView();
+      }
+      document.body.classList.toggle("preview-hidden", this.previewHidden);
+      this.previewHideButton.classList.toggle("active", this.previewHidden);
+      this.previewHideButton.setAttribute("aria-pressed", String(this.previewHidden));
+      this.previewHideButton.textContent = this.previewHidden ? "Show Preview" : "Hide Preview";
+    }
+
+    togglePreview() {
+      this.setPreviewHidden(!this.previewHidden);
+    }
+
     toggleFullView() {
       this._stopPreviewDrag();
       this.hideAreaFlowMenu(false);
@@ -236,9 +273,13 @@ export function withControls<TBase extends AppConstructor<any>>(Base: TBase) {
         offsetX: e.clientX - rect.left,
         offsetY: e.clientY - rect.top,
       };
+      if (handle.setPointerCapture && typeof e.pointerId === "number") {
+        try { handle.setPointerCapture(e.pointerId); } catch {}
+      }
       handle.classList.add("active");
-      window.addEventListener("mousemove", this._movePanel);
-      window.addEventListener("mouseup", this._stopPanelDrag);
+      window.addEventListener("pointermove", this._movePanel);
+      window.addEventListener("pointerup", this._stopPanelDrag);
+      window.addEventListener("pointercancel", this._stopPanelDrag);
     }
 
     clampFloatingPanel(element) {
@@ -269,8 +310,9 @@ export function withControls<TBase extends AppConstructor<any>>(Base: TBase) {
       if (!this.panelDragging) return;
       this.panelDragging.handle.classList.remove("active");
       this.panelDragging = null;
-      window.removeEventListener("mousemove", this._movePanel);
-      window.removeEventListener("mouseup", this._stopPanelDrag);
+      window.removeEventListener("pointermove", this._movePanel);
+      window.removeEventListener("pointerup", this._stopPanelDrag);
+      window.removeEventListener("pointercancel", this._stopPanelDrag);
     };
 
     startPreviewDrag(e) {
@@ -283,9 +325,13 @@ export function withControls<TBase extends AppConstructor<any>>(Base: TBase) {
         offsetY: e.clientY - frameRect.top,
         container: this.container,
       };
+      if (this.previewMoveBtn.setPointerCapture && typeof e.pointerId === "number") {
+        try { this.previewMoveBtn.setPointerCapture(e.pointerId); } catch {}
+      }
       this.previewMoveBtn.classList.add("active");
-      window.addEventListener("mousemove", this._movePreviewFrame);
-      window.addEventListener("mouseup", this._stopPreviewDrag);
+      window.addEventListener("pointermove", this._movePreviewFrame);
+      window.addEventListener("pointerup", this._stopPreviewDrag);
+      window.addEventListener("pointercancel", this._stopPreviewDrag);
     }
 
     _movePreviewFrame = (e) => {
@@ -313,8 +359,9 @@ export function withControls<TBase extends AppConstructor<any>>(Base: TBase) {
       if (!this.previewDragging) return;
       this.previewDragging = null;
       this.previewMoveBtn.classList.remove("active");
-      window.removeEventListener("mousemove", this._movePreviewFrame);
-      window.removeEventListener("mouseup", this._stopPreviewDrag);
+      window.removeEventListener("pointermove", this._movePreviewFrame);
+      window.removeEventListener("pointerup", this._stopPreviewDrag);
+      window.removeEventListener("pointercancel", this._stopPreviewDrag);
     };
 
     randomizeColors() {

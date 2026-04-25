@@ -5,6 +5,7 @@ type HideButtonsProps = {
   moveButtonRef: RefObject<HTMLButtonElement | null>;
   uiToggleButtonRef: RefObject<HTMLButtonElement | null>;
   borderToggleButtonRef: RefObject<HTMLButtonElement | null>;
+  previewHideButtonRef: RefObject<HTMLButtonElement | null>;
   gridButtonRef: RefObject<HTMLButtonElement | null>;
   pointsButtonRef: RefObject<HTMLButtonElement | null>;
   gradientTypesButtonRef: RefObject<HTMLButtonElement | null>;
@@ -15,6 +16,7 @@ export function HideButtons({
   moveButtonRef,
   uiToggleButtonRef,
   borderToggleButtonRef,
+  previewHideButtonRef,
   gridButtonRef,
   pointsButtonRef,
   gradientTypesButtonRef,
@@ -48,6 +50,15 @@ export function HideButtons({
           ref={borderToggleButtonRef}
         >
           Hide Border
+        </button>
+        <button
+          className="btn"
+          id="btn-preview-hide"
+          type="button"
+          aria-pressed="false"
+          ref={previewHideButtonRef}
+        >
+          Hide Preview
         </button>
         <button
           className="btn active"

@@ -277,7 +277,16 @@ export function withRendering<TBase extends AppConstructor<any>>(Base: TBase) {
       return findGridPointAt(this.getDisplayGrid(), this.W, this.H, mx, my, R);
     }
 
+    _isMobileToolbarOpen() {
+      return (
+        typeof window.matchMedia === "function" &&
+        window.matchMedia("(max-width: 720px)").matches &&
+        !document.body.classList.contains("mobile-tools-hidden")
+      );
+    }
+
     openPickerFor(rc) {
+      if (this._isMobileToolbarOpen()) return;
       this.colorMode = "point";
       if (!this.selectedPoints.some((point) => point.row === rc.row && point.col === rc.col)) {
         this.selectedPoints = [rc];
@@ -289,6 +298,7 @@ export function withRendering<TBase extends AppConstructor<any>>(Base: TBase) {
     }
 
     openPickerForPointSelection(points = this.selectedPoints) {
+      if (this._isMobileToolbarOpen()) return;
       const firstPoint = points[0];
       if (!firstPoint) return;
       this.colorMode = "point";

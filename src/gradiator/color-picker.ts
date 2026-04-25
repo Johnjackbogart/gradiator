@@ -127,32 +127,36 @@ export class ColorPicker {
 
   destroy() {
     this.svDragging = false;
-    this.svWrap.removeEventListener("mousedown", this._onSvWrapMouseDown);
-    window.removeEventListener("mousemove", this._onWindowMouseMove);
-    window.removeEventListener("mouseup", this._onWindowMouseUp);
+    this.svWrap.removeEventListener("pointerdown", this._onSvWrapPointerDown);
+    window.removeEventListener("pointermove", this._onWindowPointerMove);
+    window.removeEventListener("pointerup", this._onWindowPointerUp);
+    window.removeEventListener("pointercancel", this._onWindowPointerUp);
     this.hueSlider.removeEventListener("input", this._onHueInput);
-    this.hueSlider.removeEventListener("mousedown", this._stopPropagation);
+    this.hueSlider.removeEventListener("pointerdown", this._stopPropagation);
     this.hexInput.removeEventListener("keydown", this._stopPropagation);
     this.hexInput.removeEventListener("change", this._onHexChange);
-    this.panel.removeEventListener("mousedown", this._stopPropagation);
+    this.panel.removeEventListener("pointerdown", this._stopPropagation);
   }
 
   _stopPropagation = (e: Event) => {
     e.stopPropagation();
   };
 
-  _onSvWrapMouseDown = (e: MouseEvent) => {
+  _onSvWrapPointerDown = (e: PointerEvent) => {
     e.preventDefault();
     e.stopPropagation();
     this.svDragging = true;
+    if (this.svWrap.setPointerCapture && typeof e.pointerId === "number") {
+      try { this.svWrap.setPointerCapture(e.pointerId); } catch {}
+    }
     this._setSVFromClient(e.clientX, e.clientY);
   };
 
-  _onWindowMouseMove = (e: MouseEvent) => {
+  _onWindowPointerMove = (e: PointerEvent) => {
     if (this.svDragging) this._setSVFromClient(e.clientX, e.clientY);
   };
 
-  _onWindowMouseUp = () => {
+  _onWindowPointerUp = () => {
     this.svDragging = false;
   };
 
@@ -181,13 +185,14 @@ export class ColorPicker {
   };
 
   _bind() {
-    this.svWrap.addEventListener("mousedown", this._onSvWrapMouseDown);
-    window.addEventListener("mousemove", this._onWindowMouseMove);
-    window.addEventListener("mouseup", this._onWindowMouseUp);
+    this.svWrap.addEventListener("pointerdown", this._onSvWrapPointerDown);
+    window.addEventListener("pointermove", this._onWindowPointerMove);
+    window.addEventListener("pointerup", this._onWindowPointerUp);
+    window.addEventListener("pointercancel", this._onWindowPointerUp);
     this.hueSlider.addEventListener("input", this._onHueInput);
-    this.hueSlider.addEventListener("mousedown", this._stopPropagation);
+    this.hueSlider.addEventListener("pointerdown", this._stopPropagation);
     this.hexInput.addEventListener("keydown", this._stopPropagation);
     this.hexInput.addEventListener("change", this._onHexChange);
-    this.panel.addEventListener("mousedown", this._stopPropagation);
+    this.panel.addEventListener("pointerdown", this._stopPropagation);
   }
 }

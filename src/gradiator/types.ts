@@ -123,6 +123,7 @@ export type GradiatorAppElements = {
   glCanvas: HTMLCanvasElement;
   overlayCanvas: HTMLCanvasElement;
   previewCanvas: HTMLCanvasElement;
+  mobileToolsToggleButton: HTMLButtonElement;
   uiControls: HTMLDivElement;
   uiMoveButton: HTMLButtonElement;
   toolbar: HTMLDivElement;
@@ -132,6 +133,7 @@ export type GradiatorAppElements = {
   previewViewButton: HTMLButtonElement;
   borderToggleButton: HTMLButtonElement;
   uiToggleButton: HTMLButtonElement;
+  previewHideButton: HTMLButtonElement;
   gridButton: HTMLButtonElement;
   pointsButton: HTMLButtonElement;
   gradientTypesButton: HTMLButtonElement;

@@ -234,6 +234,7 @@ body {
   color: rgba(255, 255, 255, 0.88);
   cursor: grab;
   flex: 0 0 auto;
+  touch-action: none;
 }
 
 .btn.panel-handle:hover {
@@ -455,6 +456,7 @@ body {
 
 #overlay-canvas {
   cursor: crosshair;
+  touch-action: none;
 }
 
 #preview-frame {
@@ -497,6 +499,7 @@ body {
   left: 12px;
   right: auto;
   cursor: grab;
+  touch-action: none;
 }
 
 #preview-frame #btn-move:active {
@@ -576,6 +579,14 @@ body.preview-full #preview-canvas {
   border-radius: var(--ui-radius);
 }
 
+#mobile-toolbar-wrap {
+  display: contents;
+}
+
+#mobile-tools-toggle {
+  display: none;
+}
+
 @media (max-width: 720px) {
   #brand-mark {
     top: max(6px, calc(var(--image-inset) - 12px));
@@ -586,15 +597,57 @@ body.preview-full #preview-canvas {
     width: min(260px, calc(100vw - 24px));
   }
 
-  #ui-controls {
-    bottom: 12px;
+  #mobile-toolbar-wrap {
+    position: fixed;
+    left: 12px;
     right: 12px;
+    bottom: 12px;
+    z-index: 18;
+    display: flex;
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: 8px;
+    pointer-events: none;
   }
 
-  #toolbar {
-    max-width: calc(100vw - 24px);
-    left: 12px;
-    bottom: 12px;
+  #mobile-toolbar-wrap > * {
+    pointer-events: auto;
+  }
+
+  #mobile-tools-toggle {
+    display: grid;
+    place-items: center;
+    align-self: flex-end;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border-radius: 999px;
+    background: rgba(8, 8, 8, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: rgba(255, 255, 255, 0.92);
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    backdrop-filter: blur(2px);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+    touch-action: manipulation;
+  }
+
+  #mobile-toolbar-wrap > #toolbar,
+  #mobile-toolbar-wrap > #ui-controls,
+  #mobile-toolbar-wrap > #animation-toolbar {
+    position: static;
+    transform: none;
+    left: auto;
+    right: auto;
+    top: auto;
+    bottom: auto;
+    max-width: none;
+    margin: 0;
+    width: 100%;
+  }
+
+  #mobile-toolbar-wrap > #toolbar {
     padding: 10px;
     align-items: flex-start;
   }
@@ -608,9 +661,7 @@ body.preview-full #preview-canvas {
     flex-wrap: wrap;
   }
 
-  #animation-toolbar {
-    bottom: 84px;
-    max-width: calc(100vw - 24px);
+  #mobile-toolbar-wrap > #animation-toolbar {
     flex-wrap: wrap;
     justify-content: center;
   }
@@ -622,6 +673,15 @@ body.preview-full #preview-canvas {
     padding-top: 8px;
     border-left: 0;
     border-top: 1px solid rgba(255, 255, 255, 0.12);
+  }
+
+  #btn-toolbar-move,
+  #btn-ui-move {
+    display: none;
+  }
+
+  body.mobile-tools-hidden #mobile-toolbar-wrap > *:not(#mobile-tools-toggle) {
+    display: none;
   }
 
   #preview-frame {
@@ -638,6 +698,10 @@ body.ui-hidden #preview-frame {
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
+}
+
+body.preview-hidden #preview-frame {
+  display: none;
 }
 
 #cp-panel {
@@ -663,6 +727,7 @@ body.ui-hidden #preview-frame {
   overflow: hidden;
   cursor: crosshair;
   margin-bottom: 11px;
+  touch-action: none;
 }
 
 #cp-sv-canvas {

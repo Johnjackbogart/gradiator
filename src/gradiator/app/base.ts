@@ -27,6 +27,7 @@ export class GradiatorAppBase {
   readonly glCanvas: HTMLCanvasElement;
   readonly ov: HTMLCanvasElement;
   readonly preview: HTMLCanvasElement;
+  readonly mobileToolsToggleButton: HTMLButtonElement;
   readonly uiControls: HTMLDivElement;
   readonly uiMoveButton: HTMLButtonElement;
   readonly toolbar: HTMLDivElement;
@@ -36,6 +37,7 @@ export class GradiatorAppBase {
   readonly previewViewBtn: HTMLButtonElement;
   readonly borderToggleButton: HTMLButtonElement;
   readonly uiToggleButton: HTMLButtonElement;
+  readonly previewHideButton: HTMLButtonElement;
   readonly gridButton: HTMLButtonElement;
   readonly pointsButton: HTMLButtonElement;
   readonly gradientTypesButton: HTMLButtonElement;
@@ -100,6 +102,7 @@ export class GradiatorAppBase {
   colorMode: "point" | "all" = "point";
   borderHidden = false;
   uiHidden = false;
+  previewHidden = false;
   panelDragging: PanelDragState | null = null;
   previewDragging: PreviewDragState | null = null;
   previewDockedStyle: DockedStyle | null = null;
@@ -130,6 +133,7 @@ export class GradiatorAppBase {
     this.glCanvas = elements.glCanvas;
     this.ov = elements.overlayCanvas;
     this.preview = elements.previewCanvas;
+    this.mobileToolsToggleButton = elements.mobileToolsToggleButton;
     this.uiControls = elements.uiControls;
     this.uiMoveButton = elements.uiMoveButton;
     this.toolbar = elements.toolbar;
@@ -139,6 +143,7 @@ export class GradiatorAppBase {
     this.previewViewBtn = elements.previewViewButton;
     this.borderToggleButton = elements.borderToggleButton;
     this.uiToggleButton = elements.uiToggleButton;
+    this.previewHideButton = elements.previewHideButton;
     this.gridButton = elements.gridButton;
     this.pointsButton = elements.pointsButton;
     this.gradientTypesButton = elements.gradientTypesButton;

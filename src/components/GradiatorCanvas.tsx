@@ -11,10 +11,12 @@ export function GradiatorCanvas() {
   const imageStageRef = useRef<HTMLDivElement>(null);
   const glCanvasRef = useRef<HTMLCanvasElement>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
+  const mobileToolsToggleButtonRef = useRef<HTMLButtonElement>(null);
   const uiControlsRef = useRef<HTMLDivElement>(null);
   const uiMoveButtonRef = useRef<HTMLButtonElement>(null);
   const uiToggleButtonRef = useRef<HTMLButtonElement>(null);
   const borderToggleButtonRef = useRef<HTMLButtonElement>(null);
+  const previewHideButtonRef = useRef<HTMLButtonElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
   const toolbarMoveButtonRef = useRef<HTMLButtonElement>(null);
   const gridButtonRef = useRef<HTMLButtonElement>(null);
@@ -53,10 +55,12 @@ export function GradiatorCanvas() {
     const imageStage = imageStageRef.current;
     const glCanvas = glCanvasRef.current;
     const overlayCanvas = overlayCanvasRef.current;
+    const mobileToolsToggleButton = mobileToolsToggleButtonRef.current;
     const uiControls = uiControlsRef.current;
     const uiMoveButton = uiMoveButtonRef.current;
     const uiToggleButton = uiToggleButtonRef.current;
     const borderToggleButton = borderToggleButtonRef.current;
+    const previewHideButton = previewHideButtonRef.current;
     const toolbar = toolbarRef.current;
     const toolbarMoveButton = toolbarMoveButtonRef.current;
     const gridButton = gridButtonRef.current;
@@ -95,10 +99,12 @@ export function GradiatorCanvas() {
       !imageStage ||
       !glCanvas ||
       !overlayCanvas ||
+      !mobileToolsToggleButton ||
       !uiControls ||
       !uiMoveButton ||
       !uiToggleButton ||
       !borderToggleButton ||
+      !previewHideButton ||
       !toolbar ||
       !toolbarMoveButton ||
       !gridButton ||
@@ -141,6 +147,7 @@ export function GradiatorCanvas() {
       glCanvas,
       overlayCanvas,
       previewCanvas,
+      mobileToolsToggleButton,
       uiControls,
       uiMoveButton,
       toolbar,
@@ -150,6 +157,7 @@ export function GradiatorCanvas() {
       previewViewButton,
       borderToggleButton,
       uiToggleButton,
+      previewHideButton,
       gridButton,
       pointsButton,
       gradientTypesButton,
@@ -191,34 +199,47 @@ export function GradiatorCanvas() {
           <canvas id="overlay-canvas" ref={overlayCanvasRef}></canvas>
         </div>
         <Title />
-        <HideButtons
-          controlsRef={uiControlsRef}
-          moveButtonRef={uiMoveButtonRef}
-          uiToggleButtonRef={uiToggleButtonRef}
-          borderToggleButtonRef={borderToggleButtonRef}
-          gridButtonRef={gridButtonRef}
-          pointsButtonRef={pointsButtonRef}
-          gradientTypesButtonRef={gradientTypesButtonRef}
-        />
-        <Toolbar
-          toolbarRef={toolbarRef}
-          moveButtonRef={toolbarMoveButtonRef}
-          aspectButtonRef={aspectButtonRef}
-          animateButtonRef={animateButtonRef}
-          randomizeButtonRef={randomizeButtonRef}
-          colorButtonRef={colorButtonRef}
-          exportButtonRef={exportButtonRef}
-        />
-        <AnimationToolbar
-          toolbarRef={animationToolbarRef}
-          playPauseButtonRef={animationPlayPauseButtonRef}
-          clearButtonRef={animationClearButtonRef}
-          pathControlsRef={animationPathControlsRef}
-          pathLabelRef={animationPathLabelRef}
-          durationInputRef={animationDurationInputRef}
-          durationValueRef={animationDurationValueRef}
-          easingSelectRef={animationEasingSelectRef}
-        />
+        <div id="mobile-toolbar-wrap">
+          <button
+            id="mobile-tools-toggle"
+            type="button"
+            aria-label="Hide controls"
+            aria-expanded="true"
+            aria-controls="toolbar ui-controls animation-toolbar"
+            ref={mobileToolsToggleButtonRef}
+          >
+            ☰
+          </button>
+          <HideButtons
+            controlsRef={uiControlsRef}
+            moveButtonRef={uiMoveButtonRef}
+            uiToggleButtonRef={uiToggleButtonRef}
+            borderToggleButtonRef={borderToggleButtonRef}
+            previewHideButtonRef={previewHideButtonRef}
+            gridButtonRef={gridButtonRef}
+            pointsButtonRef={pointsButtonRef}
+            gradientTypesButtonRef={gradientTypesButtonRef}
+          />
+          <Toolbar
+            toolbarRef={toolbarRef}
+            moveButtonRef={toolbarMoveButtonRef}
+            aspectButtonRef={aspectButtonRef}
+            animateButtonRef={animateButtonRef}
+            randomizeButtonRef={randomizeButtonRef}
+            colorButtonRef={colorButtonRef}
+            exportButtonRef={exportButtonRef}
+          />
+          <AnimationToolbar
+            toolbarRef={animationToolbarRef}
+            playPauseButtonRef={animationPlayPauseButtonRef}
+            clearButtonRef={animationClearButtonRef}
+            pathControlsRef={animationPathControlsRef}
+            pathLabelRef={animationPathLabelRef}
+            durationInputRef={animationDurationInputRef}
+            durationValueRef={animationDurationValueRef}
+            easingSelectRef={animationEasingSelectRef}
+          />
+        </div>
         <Preview
           frameRef={previewFrameRef}
           moveButtonRef={previewMoveButtonRef}

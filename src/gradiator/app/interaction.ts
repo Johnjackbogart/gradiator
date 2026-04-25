@@ -10,8 +10,11 @@ export function withInteraction<TBase extends AppConstructor<any>>(Base: TBase) 
       }
     }
 
-    _onOverlayMouseDown = (e: MouseEvent) => {
+    _onOverlayPointerDown = (e: PointerEvent) => {
       if (e.button !== 0) return;
+      if (this.ov.setPointerCapture) {
+        try { this.ov.setPointerCapture(e.pointerId); } catch {}
+      }
       this._cancelPickerTimer();
       const { x, y } = this.getMousePos(e);
       const areaControl = this.findAreaFlowControlAt(x, y);
@@ -80,7 +83,7 @@ export function withInteraction<TBase extends AppConstructor<any>>(Base: TBase) 
       this.renderOverlay();
     };
 
-    _onOverlayMouseMove = (e: MouseEvent) => {
+    _onOverlayPointerMove = (e: PointerEvent) => {
       if (e.currentTarget === this.ov && (this.dragging || this.selectingMode || this.drawingAnimationPathPoint)) return;
       const { x, y } =
         this.dragging || this.selectingMode || this.drawingAnimationPathPoint
@@ -153,17 +156,17 @@ export function withInteraction<TBase extends AppConstructor<any>>(Base: TBase) 
       }
     };
 
-    _onWindowMouseMove = (e: MouseEvent) => {
+    _onWindowPointerMove = (e: PointerEvent) => {
       if (!this.dragging && !this.selectingMode && !this.drawingAnimationPathPoint) return;
-      this._onOverlayMouseMove(e);
+      this._onOverlayPointerMove(e);
     };
 
-    _onWindowMouseUp = () => {
+    _onWindowPointerUp = () => {
       if (!this.dragging && !this.selectingMode && !this.drawingAnimationPathPoint) return;
-      this._onOverlayMouseUp();
+      this._onOverlayPointerUp();
     };
 
-    _onOverlayMouseUp = () => {
+    _onOverlayPointerUp = () => {
       if (this.drawingAnimationPathPoint) {
         this.finishAnimationPathDrawing();
         this._stopCanvasInteractionTracking();
@@ -244,7 +247,7 @@ export function withInteraction<TBase extends AppConstructor<any>>(Base: TBase) 
             : "crosshair";
     };
 
-    _onOverlayDoubleClick = (e: MouseEvent) => {
+    _onOverlayDoubleClick = (e: PointerEvent) => {
       this._cancelPickerTimer();
       const { x, y } = this.getMousePos(e);
       const areaControl = this.findAreaFlowControlAt(x, y);
@@ -274,7 +277,7 @@ export function withInteraction<TBase extends AppConstructor<any>>(Base: TBase) 
       this.updateAnimationToolbarState();
     };
 
-    _onOverlayMouseLeave = () => {
+    _onOverlayPointerLeave = () => {
       this.hovered = null;
       this.hoveredAreaFlowControl = null;
       this.hoveredAnimationPathId = null;
@@ -282,7 +285,7 @@ export function withInteraction<TBase extends AppConstructor<any>>(Base: TBase) 
       this.renderOverlay();
     };
 
-    _onAreaFlowMenuMouseDown = (e: MouseEvent) => {
+    _onAreaFlowMenuPointerDown = (e: PointerEvent) => {
       e.stopPropagation();
     };
 
@@ -299,7 +302,7 @@ export function withInteraction<TBase extends AppConstructor<any>>(Base: TBase) 
       this.render();
     };
 
-    _onDocumentMouseDown = (e: MouseEvent) => {
+    _onDocumentPointerDown = (e: PointerEvent) => {
       if (this.areaFlowMenu.hidden) return;
       const target = e.target;
       if (target instanceof Node && this.areaFlowMenu.contains(target)) return;
@@ -339,25 +342,28 @@ export function withInteraction<TBase extends AppConstructor<any>>(Base: TBase) 
     };
 
     setupEvents() {
-      this.ov.addEventListener("mousedown", this._onOverlayMouseDown);
-      this.ov.addEventListener("mousemove", this._onOverlayMouseMove);
-      this.ov.addEventListener("mouseup", this._onOverlayMouseUp);
+      this.ov.addEventListener("pointerdown", this._onOverlayPointerDown);
+      this.ov.addEventListener("pointermove", this._onOverlayPointerMove);
+      this.ov.addEventListener("pointerup", this._onOverlayPointerUp);
+      this.ov.addEventListener("pointercancel", this._onOverlayPointerUp);
       this.ov.addEventListener("dblclick", this._onOverlayDoubleClick);
-      this.ov.addEventListener("mouseleave", this._onOverlayMouseLeave);
-      this.areaFlowMenu.addEventListener("mousedown", this._onAreaFlowMenuMouseDown);
+      this.ov.addEventListener("pointerleave", this._onOverlayPointerLeave);
+      this.areaFlowMenu.addEventListener("pointerdown", this._onAreaFlowMenuPointerDown);
       this.areaFlowMenuOptions.addEventListener("click", this._onAreaFlowMenuClick);
-      document.addEventListener("mousedown", this._onDocumentMouseDown);
+      document.addEventListener("pointerdown", this._onDocumentPointerDown);
       document.addEventListener("keydown", this._onDocumentKeyDown);
     }
 
     _startCanvasInteractionTracking() {
-      window.addEventListener("mousemove", this._onWindowMouseMove);
-      window.addEventListener("mouseup", this._onWindowMouseUp);
+      window.addEventListener("pointermove", this._onWindowPointerMove);
+      window.addEventListener("pointerup", this._onWindowPointerUp);
+      window.addEventListener("pointercancel", this._onWindowPointerUp);
     }
 
     _stopCanvasInteractionTracking() {
-      window.removeEventListener("mousemove", this._onWindowMouseMove);
-      window.removeEventListener("mouseup", this._onWindowMouseUp);
+      window.removeEventListener("pointermove", this._onWindowPointerMove);
+      window.removeEventListener("pointerup", this._onWindowPointerUp);
+      window.removeEventListener("pointercancel", this._onWindowPointerUp);
     }
 
     _updateSelectionFromRect() {
