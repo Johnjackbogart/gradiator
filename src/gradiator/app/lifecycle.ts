@@ -35,6 +35,10 @@ export function withLifecycle<TBase extends AppConstructor<any>>(Base: TBase) {
       this.previewViewBtn.removeEventListener("click", this._onPreviewViewClick);
       this.previewMoveBtn.removeEventListener("mousedown", this._onPreviewMoveMouseDown);
       this.exportButton.removeEventListener("click", this._onExportButtonClick);
+      this.animationPlayPauseButton.removeEventListener("click", this._onAnimationPlayPauseClick);
+      this.animationClearButton.removeEventListener("click", this._onAnimationClearClick);
+      this.animationDurationInput.removeEventListener("input", this._onAnimationDurationInput);
+      this.animationEasingSelect.removeEventListener("change", this._onAnimationEasingChange);
 
       this.resizeObserver.disconnect();
       this.hideAreaFlowMenu(false);
@@ -44,6 +48,11 @@ export function withLifecycle<TBase extends AppConstructor<any>>(Base: TBase) {
       this.dragging = null;
       this.dragStart = null;
       this.dragPointerOffset = null;
+      this.pathDrawingMode = false;
+      this.drawingAnimationPathPoint = null;
+      this.draftAnimationPath = [];
+      this.selectedAnimationPathId = null;
+      this.hoveredAnimationPathId = null;
       this.hovered = null;
       this.hoveredAreaFlowControl = null;
       this.ov.style.cursor = "crosshair";

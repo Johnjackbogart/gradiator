@@ -6,6 +6,8 @@ import type {
   GradientPoint,
   GridAreaIndex,
   GridIndex,
+  PointAnimationPath,
+  Point2D,
   SelectionRect,
 } from "./types";
 
@@ -36,6 +38,7 @@ type RenderOverlayOptions = {
   width: number;
   height: number;
   grid: GradientPoint[][];
+  baseGrid: GradientPoint[][];
   showGrid: boolean;
   showPoints: boolean;
   showGradientTypes: boolean;
@@ -48,6 +51,11 @@ type RenderOverlayOptions = {
   selectedPoints: GridIndex[];
   dragging: GridIndex | null;
   hovered: GridIndex | null;
+  animationPaths: PointAnimationPath[];
+  selectedAnimationPathId: string | null;
+  hoveredAnimationPathId: string | null;
+  drawingAnimationPathPoint: GridIndex | null;
+  draftAnimationPath: Point2D[];
   selectionRect: SelectionRect | null;
 };
 
@@ -113,6 +121,7 @@ export function renderOverlayCanvas({
   width,
   height,
   grid,
+  baseGrid,
   showGrid,
   showPoints,
   showGradientTypes,
@@ -125,12 +134,28 @@ export function renderOverlayCanvas({
   selectedPoints,
   dragging,
   hovered,
+  animationPaths,
+  selectedAnimationPathId,
+  hoveredAnimationPathId,
+  drawingAnimationPathPoint,
+  draftAnimationPath,
   selectionRect,
 }: RenderOverlayOptions) {
   ctx.clearRect(0, 0, width, height);
   if (showGrid) {
     drawGrid(ctx, width, height, grid, flowLines);
   }
+  drawAnimationPaths(
+    ctx,
+    width,
+    height,
+    baseGrid,
+    animationPaths,
+    selectedAnimationPathId,
+    hoveredAnimationPathId,
+    drawingAnimationPathPoint,
+    draftAnimationPath,
+  );
   if (selectionRect) {
     drawSelectionRect(ctx, selectionRect);
   }
@@ -146,6 +171,91 @@ export function renderOverlayCanvas({
   if (showPoints) {
     drawHandles(ctx, width, height, grid, selected, selectedPoints, dragging, hovered);
   }
+}
+
+function drawAnimationPaths(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  grid: GradientPoint[][],
+  paths: PointAnimationPath[],
+  selectedPathId: string | null,
+  hoveredPathId: string | null,
+  drawingPoint: GridIndex | null,
+  draftPath: Point2D[],
+) {
+  if (!paths.length && !drawingPoint) return;
+
+  ctx.save();
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+
+  for (const path of paths) {
+    const basePoint = grid[path.point.row]?.[path.point.col];
+    if (!basePoint || path.points.length < 2) continue;
+    const isSelected = path.id === selectedPathId;
+    const isHovered = path.id === hoveredPathId;
+    drawAnimationPathLine(ctx, width, height, basePoint, path.points, {
+      strokeStyle: isSelected
+        ? "rgba(255, 255, 255, 0.62)"
+        : isHovered
+          ? "rgba(255, 255, 255, 0.5)"
+          : "rgba(255, 255, 255, 0.34)",
+      lineWidth: isSelected ? 2.4 : 1.8,
+      dash: [],
+    });
+    drawAnimationPathEndpoint(ctx, width, height, basePoint, path.points[path.points.length - 1], isSelected);
+  }
+
+  if (drawingPoint && draftPath.length >= 2) {
+    const basePoint = grid[drawingPoint.row]?.[drawingPoint.col];
+    if (basePoint) {
+      drawAnimationPathLine(ctx, width, height, basePoint, draftPath, {
+        strokeStyle: "rgba(255, 255, 255, 0.46)",
+        lineWidth: 2,
+        dash: [7, 5],
+      });
+    }
+  }
+
+  ctx.restore();
+}
+
+function drawAnimationPathLine(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  basePoint: GradientPoint,
+  points: Point2D[],
+  style: { strokeStyle: string; lineWidth: number; dash: number[] },
+) {
+  ctx.beginPath();
+  ctx.moveTo((basePoint.x + points[0].x) * width, (basePoint.y + points[0].y) * height);
+  for (let index = 1; index < points.length; index++) {
+    ctx.lineTo((basePoint.x + points[index].x) * width, (basePoint.y + points[index].y) * height);
+  }
+
+  ctx.setLineDash(style.dash);
+  ctx.strokeStyle = style.strokeStyle;
+  ctx.lineWidth = style.lineWidth;
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function drawAnimationPathEndpoint(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  basePoint: GradientPoint,
+  point: Point2D,
+  selected: boolean,
+) {
+  const x = (basePoint.x + point.x) * width;
+  const y = (basePoint.y + point.y) * height;
+  ctx.beginPath();
+  ctx.arc(x, y, selected ? 4.8 : 3.8, 0, Math.PI * 2);
+  ctx.fillStyle = selected ? "rgba(255, 255, 255, 0.62)" : "rgba(255, 255, 255, 0.42)";
+  ctx.fill();
 }
 
 export function buildAreaFlowControls({ width, height, grid, flowModeGrid }: BuildAreaFlowControlsOptions) {

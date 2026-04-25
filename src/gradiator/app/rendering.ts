@@ -61,6 +61,7 @@ export function withRendering<TBase extends AppConstructor<any>>(Base: TBase) {
         width: this.W,
         height: this.H,
         grid,
+        baseGrid: this.grid,
         showGrid: this.showGrid,
         showPoints: this.showPoints,
         showGradientTypes: this.showGradientTypes,
@@ -73,6 +74,11 @@ export function withRendering<TBase extends AppConstructor<any>>(Base: TBase) {
         selectedPoints: this.selectedPoints,
         dragging: this.dragging,
         hovered: this.hovered,
+        animationPaths: this.pointAnimations,
+        selectedAnimationPathId: this.selectedAnimationPathId,
+        hoveredAnimationPathId: this.hoveredAnimationPathId,
+        drawingAnimationPathPoint: this.drawingAnimationPathPoint,
+        draftAnimationPath: this.draftAnimationPath,
         selectionRect: this.selectionRect,
       });
     }
@@ -97,6 +103,35 @@ export function withRendering<TBase extends AppConstructor<any>>(Base: TBase) {
       }
 
       return null;
+    }
+
+    findAnimationPathAt(x: number, y: number, hitRadius = 8) {
+      for (let index = this.pointAnimations.length - 1; index >= 0; index--) {
+        const path = this.pointAnimations[index];
+        const basePoint = this.grid[path.point.row]?.[path.point.col];
+        if (!basePoint || path.points.length < 2) continue;
+
+        for (let pointIndex = 1; pointIndex < path.points.length; pointIndex++) {
+          const prev = path.points[pointIndex - 1];
+          const next = path.points[pointIndex];
+          const ax = (basePoint.x + prev.x) * this.W;
+          const ay = (basePoint.y + prev.y) * this.H;
+          const bx = (basePoint.x + next.x) * this.W;
+          const by = (basePoint.y + next.y) * this.H;
+          if (this.distanceToSegment(x, y, ax, ay, bx, by) <= hitRadius) return path;
+        }
+      }
+
+      return null;
+    }
+
+    distanceToSegment(px: number, py: number, ax: number, ay: number, bx: number, by: number) {
+      const dx = bx - ax;
+      const dy = by - ay;
+      const lengthSq = dx * dx + dy * dy;
+      if (lengthSq <= 0) return Math.hypot(px - ax, py - ay);
+      const t = clamp(((px - ax) * dx + (py - ay) * dy) / lengthSq, 0, 1);
+      return Math.hypot(px - (ax + dx * t), py - (ay + dy * t));
     }
 
     updateAreaFlowMenuButtons() {

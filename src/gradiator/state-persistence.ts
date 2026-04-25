@@ -1,6 +1,12 @@
 import { clamp } from "../utils/math.js";
 import { decodeUrlState, encodeUrlState } from "../utils/url-state.js";
-import type { GradientPoint, SerializedGradiatorState } from "./types";
+import type {
+  AnimationEasing,
+  GradientPoint,
+  PointAnimationPath,
+  SerializedGradiatorState,
+  SerializedPointAnimationPath,
+} from "./types";
 
 type SerializeGradiatorStateInput = {
   rows: number;
@@ -8,6 +14,7 @@ type SerializeGradiatorStateInput = {
   flowModeGrid: number[][];
   aspectModeKey: SerializedGradiatorState["aspect"];
   grid: GradientPoint[][];
+  animations: PointAnimationPath[];
   roundValue: (value: number) => number;
 };
 
@@ -18,7 +25,12 @@ export type RestoredGradiatorState = {
   flowModeGrid: number[][] | null;
   aspectModeKey: string | null;
   grid: GradientPoint[][];
+  animations: PointAnimationPath[];
 };
+
+function isAnimationEasing(value: unknown): value is AnimationEasing {
+  return value === "linear" || value === "ease-in" || value === "ease-out" || value === "ease-in-out";
+}
 
 export function serializeGradiatorState({
   rows,
@@ -26,10 +38,11 @@ export function serializeGradiatorState({
   flowModeGrid,
   aspectModeKey,
   grid,
+  animations,
   roundValue,
 }: SerializeGradiatorStateInput) {
   return encodeUrlState({
-    v: 3,
+    v: 4,
     rows,
     cols,
     flow: flowModeGrid[0]?.[0] ?? 0,
@@ -44,6 +57,14 @@ export function serializeGradiatorState({
         roundValue(point.b),
       ]),
     ),
+    animations: animations.map((animation) => ({
+      id: animation.id,
+      row: animation.point.row,
+      col: animation.point.col,
+      duration: Math.round(animation.durationMs),
+      easing: animation.easing,
+      points: animation.points.flatMap((point) => [roundValue(point.x), roundValue(point.y)]),
+    })),
   } satisfies SerializedGradiatorState);
 }
 
@@ -92,6 +113,8 @@ export function parseGradiatorState(encoded: string): RestoredGradiatorState | n
     }
   }
 
+  const animations = parseAnimations(state?.animations, rows, cols);
+
   return {
     rows,
     cols,
@@ -99,5 +122,43 @@ export function parseGradiatorState(encoded: string): RestoredGradiatorState | n
     flowModeGrid,
     aspectModeKey: typeof state?.aspect === "string" ? state.aspect : null,
     grid,
+    animations,
   };
+}
+
+function parseAnimations(value: unknown, rows: number, cols: number) {
+  if (!Array.isArray(value)) return [];
+
+  const animations: PointAnimationPath[] = [];
+  for (let index = 0; index < value.length; index++) {
+    const raw = value[index] as Partial<SerializedPointAnimationPath>;
+    if (!raw || typeof raw !== "object") continue;
+    if (!Number.isInteger(raw.row) || !Number.isInteger(raw.col)) continue;
+    if (raw.row < 0 || raw.row >= rows || raw.col < 0 || raw.col >= cols) continue;
+    if (!Array.isArray(raw.points) || raw.points.length < 4 || raw.points.length % 2 !== 0) continue;
+    if (!isAnimationEasing(raw.easing)) continue;
+
+    const points = [];
+    let validPoints = true;
+    for (let pointIndex = 0; pointIndex < raw.points.length; pointIndex += 2) {
+      const x = raw.points[pointIndex];
+      const y = raw.points[pointIndex + 1];
+      if (!Number.isFinite(x) || !Number.isFinite(y)) {
+        validPoints = false;
+        break;
+      }
+      points.push({ x: clamp(x, -1, 1), y: clamp(y, -1, 1) });
+    }
+    if (!validPoints) continue;
+
+    animations.push({
+      id: typeof raw.id === "string" && raw.id ? raw.id : `path-${index + 1}`,
+      point: { row: raw.row, col: raw.col },
+      points,
+      durationMs: clamp(Number(raw.duration) || 2400, 500, 12000),
+      easing: raw.easing,
+    });
+  }
+
+  return animations;
 }

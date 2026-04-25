@@ -67,6 +67,7 @@ export function withState<TBase extends AppConstructor<any>>(Base: TBase) {
         flowModeGrid: this.flowModeGrid,
         aspectModeKey: this.currentAspectMode().key,
         grid: this.grid,
+        animations: this.pointAnimations,
         roundValue: (value) => this.roundStateValue(value),
       });
     }
@@ -91,6 +92,8 @@ export function withState<TBase extends AppConstructor<any>>(Base: TBase) {
         this.ROWS = state.rows;
         this.COLS = state.cols;
         this.grid = state.grid;
+        this.pointAnimations = state.animations;
+        this.resetAnimationPathIdCounter();
         this.setDefaultFlowMode(state.flowModeIndex ?? this.defaultFlowModeIndex);
         this.flowModeGrid = normalizeFlowModeGrid(
           state.flowModeGrid,
@@ -117,6 +120,7 @@ export function withState<TBase extends AppConstructor<any>>(Base: TBase) {
 
     removePointAt(row, col) {
       if (!removeGridPoint(this.grid, row, col)) return false;
+      this.collapseAnimationPathsForRemovedPoint(row, col);
       this.flowModeGrid = collapseFlowModeGridForPointRemoval(
         this.flowModeGrid,
         row,
@@ -128,6 +132,10 @@ export function withState<TBase extends AppConstructor<any>>(Base: TBase) {
       this.selectedPoints = [];
       this.dragging = null;
       this.hovered = null;
+      this.selectedAnimationPathId = null;
+      this.hoveredAnimationPathId = null;
+      this.pathDrawingMode = false;
+      this.cancelAnimationPathDrawing();
       this.selectedAreaFlowControls = [];
       this.hoveredAreaFlowControl = null;
       this.selectionRect = null;
@@ -148,6 +156,7 @@ export function withState<TBase extends AppConstructor<any>>(Base: TBase) {
         sampleColor: (u, v) => this.sampleColor(u, v),
       });
       if (!insertedPoint) return;
+      this.shiftAnimationPathsForInsertedPoint(insertedPoint.insertedPoint.row, insertedPoint.insertedPoint.col);
       this.flowModeGrid = splitFlowModeGrid(
         this.flowModeGrid,
         insertedPoint.splitCell.row,
@@ -157,8 +166,12 @@ export function withState<TBase extends AppConstructor<any>>(Base: TBase) {
       this.syncGridDimensions();
       this.selected = insertedPoint.insertedPoint;
       this.selectedPoints = [insertedPoint.insertedPoint];
+      this.selectedAnimationPathId = null;
+      this.pathDrawingMode = false;
       this.selectedAreaFlowControls = [];
       this.hideAreaFlowMenu(false);
+      this.updateAnimateButtonState();
+      this.updateAnimationToolbarState();
       this.render();
     }
   };

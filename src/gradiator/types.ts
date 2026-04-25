@@ -28,6 +28,25 @@ export type Point2D = {
   y: number;
 };
 
+export type AnimationEasing = "linear" | "ease-in" | "ease-out" | "ease-in-out";
+
+export type PointAnimationPath = {
+  id: string;
+  point: GridIndex;
+  points: Point2D[];
+  durationMs: number;
+  easing: AnimationEasing;
+};
+
+export type SerializedPointAnimationPath = {
+  id?: string;
+  row: number;
+  col: number;
+  duration: number;
+  easing: AnimationEasing;
+  points: number[];
+};
+
 export type FlowMode = {
   label: string;
   blend: number;
@@ -95,6 +114,7 @@ export type SerializedGradiatorState = {
   flows?: number[];
   aspect: AspectMode["key"];
   points: number[];
+  animations?: SerializedPointAnimationPath[];
 };
 
 export type GradiatorAppElements = {
@@ -120,6 +140,14 @@ export type GradiatorAppElements = {
   colorButton: HTMLButtonElement;
   randomizeButton: HTMLButtonElement;
   exportButton: HTMLButtonElement;
+  animationToolbar: HTMLDivElement;
+  animationPlayPauseButton: HTMLButtonElement;
+  animationClearButton: HTMLButtonElement;
+  animationPathControls: HTMLDivElement;
+  animationPathLabel: HTMLSpanElement;
+  animationDurationInput: HTMLInputElement;
+  animationDurationValue: HTMLSpanElement;
+  animationEasingSelect: HTMLSelectElement;
   areaFlowMenu: HTMLDivElement;
   areaFlowMenuTitle: HTMLDivElement;
   areaFlowMenuOptions: HTMLDivElement;

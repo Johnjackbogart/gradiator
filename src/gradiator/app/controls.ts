@@ -38,7 +38,8 @@ export function withControls<TBase extends AppConstructor<any>>(Base: TBase) {
     };
 
     _onAnimateButtonClick = () => {
-      this.togglePointAnimation();
+      if (!this.selected) return;
+      this.setPathDrawingMode(!this.pathDrawingMode);
     };
 
     _onRandomizeButtonClick = () => {
@@ -66,6 +67,32 @@ export function withControls<TBase extends AppConstructor<any>>(Base: TBase) {
       this.exportPng();
     };
 
+    _onAnimationPlayPauseClick = () => {
+      if (!this.hasPointAnimations()) return;
+      this.togglePointAnimation();
+    };
+
+    _onAnimationClearClick = () => {
+      if (this.getSelectedAnimationPath()) {
+        this.clearSelectedPointAnimation();
+        return;
+      }
+
+      this.clearPointAnimations();
+    };
+
+    _onAnimationDurationInput = () => {
+      const durationSeconds = Number(this.animationDurationInput.value);
+      if (!Number.isFinite(durationSeconds)) return;
+      this.setSelectedAnimationDuration(durationSeconds * 1000);
+      this.render(false, true);
+    };
+
+    _onAnimationEasingChange = () => {
+      this.setSelectedAnimationEasing(this.animationEasingSelect.value);
+      this.render(false, true);
+    };
+
     setupButtons() {
       this.gridButton.addEventListener("click", this._onGridButtonClick);
       this.pointsButton.addEventListener("click", this._onPointsButtonClick);
@@ -81,6 +108,12 @@ export function withControls<TBase extends AppConstructor<any>>(Base: TBase) {
       this.previewViewBtn.addEventListener("click", this._onPreviewViewClick);
       this.previewMoveBtn.addEventListener("mousedown", this._onPreviewMoveMouseDown);
       this.exportButton.addEventListener("click", this._onExportButtonClick);
+      this.animationPlayPauseButton.addEventListener("click", this._onAnimationPlayPauseClick);
+      this.animationClearButton.addEventListener("click", this._onAnimationClearClick);
+      this.animationDurationInput.addEventListener("input", this._onAnimationDurationInput);
+      this.animationEasingSelect.addEventListener("change", this._onAnimationEasingChange);
+      this.updateAnimateButtonState();
+      this.updateAnimationToolbarState();
     }
 
     setGridVisible(visible) {
@@ -98,6 +131,9 @@ export function withControls<TBase extends AppConstructor<any>>(Base: TBase) {
         this.colorPicker.hide();
         this.selected = null;
         this.selectedPoints = [];
+        this.selectedAnimationPathId = null;
+        this.pathDrawingMode = false;
+        this.cancelAnimationPathDrawing();
         this.dragging = null;
         this.dragStart = null;
         this.dragPointerOffset = null;
@@ -109,6 +145,8 @@ export function withControls<TBase extends AppConstructor<any>>(Base: TBase) {
       this.pointsButton.setAttribute("aria-pressed", String(this.showPoints));
       this.pointsButton.textContent = this.showPoints ? "Hide Points" : "Show Points";
       this.ov.style.cursor = this.hoveredAreaFlowControl ? "pointer" : "crosshair";
+      this.updateAnimateButtonState();
+      this.updateAnimationToolbarState();
       this.renderOverlay();
     }
 
@@ -123,6 +161,8 @@ export function withControls<TBase extends AppConstructor<any>>(Base: TBase) {
       this.gradientTypesButton.setAttribute("aria-pressed", String(this.showGradientTypes));
       this.gradientTypesButton.textContent = this.showGradientTypes ? "Hide Types" : "Show Types";
       this.ov.style.cursor = this.hovered ? "grab" : "crosshair";
+      this.updateAnimateButtonState();
+      this.updateAnimationToolbarState();
       this.renderOverlay();
     }
 
@@ -282,6 +322,9 @@ export function withControls<TBase extends AppConstructor<any>>(Base: TBase) {
       this.selected = null;
       this.selectedPoints = [];
       this.selectedAreaFlowControls = [];
+      this.selectedAnimationPathId = null;
+      this.pathDrawingMode = false;
+      this.cancelAnimationPathDrawing();
       const base = Math.random() * 360;
       const spread = 80 + Math.random() * 40;
       const TL = hslToRgb(base % 360, 75 + Math.random() * 20, 38 + Math.random() * 14);
@@ -299,6 +342,8 @@ export function withControls<TBase extends AppConstructor<any>>(Base: TBase) {
           p.b = col.b;
         }
       }
+      this.updateAnimateButtonState();
+      this.updateAnimationToolbarState();
       this.render();
     }
   };

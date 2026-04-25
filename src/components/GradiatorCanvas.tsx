@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { bootGradiatorApp } from "../gradiator-app";
+import { AnimationToolbar } from "./AnimationToolbar";
 import { HideButtons } from "./HideButtons";
 import { Preview } from "./Preview";
 import { Title } from "./Title";
@@ -24,6 +25,14 @@ export function GradiatorCanvas() {
   const randomizeButtonRef = useRef<HTMLButtonElement>(null);
   const colorButtonRef = useRef<HTMLButtonElement>(null);
   const exportButtonRef = useRef<HTMLButtonElement>(null);
+  const animationToolbarRef = useRef<HTMLDivElement>(null);
+  const animationPlayPauseButtonRef = useRef<HTMLButtonElement>(null);
+  const animationClearButtonRef = useRef<HTMLButtonElement>(null);
+  const animationPathControlsRef = useRef<HTMLDivElement>(null);
+  const animationPathLabelRef = useRef<HTMLSpanElement>(null);
+  const animationDurationInputRef = useRef<HTMLInputElement>(null);
+  const animationDurationValueRef = useRef<HTMLSpanElement>(null);
+  const animationEasingSelectRef = useRef<HTMLSelectElement>(null);
   const areaFlowMenuRef = useRef<HTMLDivElement>(null);
   const areaFlowMenuTitleRef = useRef<HTMLDivElement>(null);
   const areaFlowMenuOptionsRef = useRef<HTMLDivElement>(null);
@@ -58,6 +67,14 @@ export function GradiatorCanvas() {
     const randomizeButton = randomizeButtonRef.current;
     const colorButton = colorButtonRef.current;
     const exportButton = exportButtonRef.current;
+    const animationToolbar = animationToolbarRef.current;
+    const animationPlayPauseButton = animationPlayPauseButtonRef.current;
+    const animationClearButton = animationClearButtonRef.current;
+    const animationPathControls = animationPathControlsRef.current;
+    const animationPathLabel = animationPathLabelRef.current;
+    const animationDurationInput = animationDurationInputRef.current;
+    const animationDurationValue = animationDurationValueRef.current;
+    const animationEasingSelect = animationEasingSelectRef.current;
     const areaFlowMenu = areaFlowMenuRef.current;
     const areaFlowMenuTitle = areaFlowMenuTitleRef.current;
     const areaFlowMenuOptions = areaFlowMenuOptionsRef.current;
@@ -92,6 +109,14 @@ export function GradiatorCanvas() {
       !randomizeButton ||
       !colorButton ||
       !exportButton ||
+      !animationToolbar ||
+      !animationPlayPauseButton ||
+      !animationClearButton ||
+      !animationPathControls ||
+      !animationPathLabel ||
+      !animationDurationInput ||
+      !animationDurationValue ||
+      !animationEasingSelect ||
       !areaFlowMenu ||
       !areaFlowMenuTitle ||
       !areaFlowMenuOptions ||
@@ -133,6 +158,14 @@ export function GradiatorCanvas() {
       colorButton,
       randomizeButton,
       exportButton,
+      animationToolbar,
+      animationPlayPauseButton,
+      animationClearButton,
+      animationPathControls,
+      animationPathLabel,
+      animationDurationInput,
+      animationDurationValue,
+      animationEasingSelect,
       areaFlowMenu,
       areaFlowMenuTitle,
       areaFlowMenuOptions,
@@ -175,6 +208,16 @@ export function GradiatorCanvas() {
           randomizeButtonRef={randomizeButtonRef}
           colorButtonRef={colorButtonRef}
           exportButtonRef={exportButtonRef}
+        />
+        <AnimationToolbar
+          toolbarRef={animationToolbarRef}
+          playPauseButtonRef={animationPlayPauseButtonRef}
+          clearButtonRef={animationClearButtonRef}
+          pathControlsRef={animationPathControlsRef}
+          pathLabelRef={animationPathLabelRef}
+          durationInputRef={animationDurationInputRef}
+          durationValueRef={animationDurationValueRef}
+          easingSelectRef={animationEasingSelectRef}
         />
         <Preview
           frameRef={previewFrameRef}

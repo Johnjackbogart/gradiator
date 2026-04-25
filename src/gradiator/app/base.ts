@@ -15,6 +15,7 @@ import type {
   GridIndex,
   PanelDragState,
   Point2D,
+  PointAnimationPath,
   PreviewDragState,
   SelectionRect,
 } from "../types";
@@ -43,6 +44,14 @@ export class GradiatorAppBase {
   readonly colorButton: HTMLButtonElement;
   readonly randomizeButton: HTMLButtonElement;
   readonly exportButton: HTMLButtonElement;
+  readonly animationToolbar: HTMLDivElement;
+  readonly animationPlayPauseButton: HTMLButtonElement;
+  readonly animationClearButton: HTMLButtonElement;
+  readonly animationPathControls: HTMLDivElement;
+  readonly animationPathLabel: HTMLSpanElement;
+  readonly animationDurationInput: HTMLInputElement;
+  readonly animationDurationValue: HTMLSpanElement;
+  readonly animationEasingSelect: HTMLSelectElement;
   readonly areaFlowMenu: HTMLDivElement;
   readonly areaFlowMenuTitle: HTMLDivElement;
   readonly areaFlowMenuOptions: HTMLDivElement;
@@ -76,6 +85,13 @@ export class GradiatorAppBase {
   selectedPoints: GridIndex[] = [];
   dragging: GridIndex | null = null;
   hovered: GridIndex | null = null;
+  pointAnimations: PointAnimationPath[] = [];
+  selectedAnimationPathId: string | null = null;
+  hoveredAnimationPathId: string | null = null;
+  pathDrawingMode = false;
+  drawingAnimationPathPoint: GridIndex | null = null;
+  draftAnimationPath: Point2D[] = [];
+  nextAnimationPathId = 1;
   activeAreaFlowControl: GridAreaIndex | null = null;
   hoveredAreaFlowControl: GridAreaIndex | null = null;
   selectedAreaFlowControls: GridAreaIndex[] = [];
@@ -98,6 +114,7 @@ export class GradiatorAppBase {
   pickerTimer: number | null = null;
   animatePoints = false;
   animationTimeMs = 0;
+  animationLastFrameMs: number | null = null;
   animationFrame: number | null = null;
   isExportingVideo = false;
   exportVideoRecorder: MediaRecorder | null = null;
@@ -130,6 +147,14 @@ export class GradiatorAppBase {
     this.colorButton = elements.colorButton;
     this.randomizeButton = elements.randomizeButton;
     this.exportButton = elements.exportButton;
+    this.animationToolbar = elements.animationToolbar;
+    this.animationPlayPauseButton = elements.animationPlayPauseButton;
+    this.animationClearButton = elements.animationClearButton;
+    this.animationPathControls = elements.animationPathControls;
+    this.animationPathLabel = elements.animationPathLabel;
+    this.animationDurationInput = elements.animationDurationInput;
+    this.animationDurationValue = elements.animationDurationValue;
+    this.animationEasingSelect = elements.animationEasingSelect;
     this.areaFlowMenu = elements.areaFlowMenu;
     this.areaFlowMenuTitle = elements.areaFlowMenuTitle;
     this.areaFlowMenuOptions = elements.areaFlowMenuOptions;

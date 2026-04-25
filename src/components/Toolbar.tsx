@@ -35,8 +35,15 @@ export function Toolbar({
           <button className="btn active" id="btn-aspect" type="button" ref={aspectButtonRef}>
             Aspect: Browser
           </button>
-          <button className="btn" id="btn-animate" type="button" aria-pressed="false" ref={animateButtonRef}>
-            Animate: Off
+          <button
+            className="btn"
+            id="btn-animate"
+            type="button"
+            aria-pressed="false"
+            ref={animateButtonRef}
+            disabled
+          >
+            Select Point
           </button>
           <button className="btn" id="btn-randomize" type="button" ref={randomizeButtonRef}>
             ↻ Randomize

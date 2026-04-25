@@ -23,49 +23,79 @@ export function withInteraction<TBase extends AppConstructor<any>>(Base: TBase) 
         this.colorPicker.hide();
         this.selected = null;
         this.selectedPoints = [];
+        this.selectedAnimationPathId = null;
+        this.pathDrawingMode = false;
+        this.cancelAnimationPathDrawing();
         this.activeAreaFlowControl = { row: areaControl.row, col: areaControl.col };
         this.selectedAreaFlowControls = [{ row: areaControl.row, col: areaControl.col }];
         this.selectingMode = "areas";
         this.ov.style.cursor = "pointer";
+        this.updateAnimateButtonState();
+        this.updateAnimationToolbarState();
         this.renderOverlay();
         return;
       }
 
       this.hideAreaFlowMenu(false);
+      if (this.pathDrawingMode && this.selected) {
+        if (this.startAnimationPathDrawing(this.selected, x, y)) {
+          this._startCanvasInteractionTracking();
+        }
+        return;
+      }
+
       const hit = this.findPointAt(x, y);
+      const animationPath = hit ? null : this.findAnimationPathAt(x, y);
       if (hit) {
         this.dragging = hit;
         this.selected = hit;
         this.selectedPoints = [hit];
         this.selectedAreaFlowControls = [];
+        this.selectedAnimationPathId = this.getAnimationPathForPoint(hit.row, hit.col)?.id ?? null;
         this.dragStart = { x, y };
         this.dragPointerOffset = {
           x: this.getDisplayPoint(hit.row, hit.col).x - x / Math.max(1, this.W),
           y: this.getDisplayPoint(hit.row, hit.col).y - y / Math.max(1, this.H),
         };
         this.ov.style.cursor = "grabbing";
+      } else if (animationPath) {
+        this.selectAnimationPath(animationPath.id);
+        this.selectedAreaFlowControls = [];
+        this.selectingMode = null;
+        this.colorPicker.hide();
+        this.renderOverlay();
+        return;
       } else {
         this.selected = null;
         this.selectedPoints = [];
         this.selectedAreaFlowControls = [];
+        this.selectedAnimationPathId = null;
+        this.pathDrawingMode = false;
         this.selectingMode = this.showPoints || this.showGradientTypes ? "points" : null;
         this.colorPicker.hide();
       }
+      this.updateAnimateButtonState();
+      this.updateAnimationToolbarState();
       if (this.dragging || this.selectingMode) this._startCanvasInteractionTracking();
       this.renderOverlay();
     };
 
     _onOverlayMouseMove = (e: MouseEvent) => {
-      if (e.currentTarget === this.ov && (this.dragging || this.selectingMode)) return;
-      const { x, y } = this.dragging || this.selectingMode ? this.getClampedMousePos(e) : this.getMousePos(e);
-      if (this.dragging && this.dragPointerOffset && this.dragStart) {
+      if (e.currentTarget === this.ov && (this.dragging || this.selectingMode || this.drawingAnimationPathPoint)) return;
+      const { x, y } =
+        this.dragging || this.selectingMode || this.drawingAnimationPathPoint
+          ? this.getClampedMousePos(e)
+          : this.getMousePos(e);
+      if (this.drawingAnimationPathPoint) {
+        this.appendAnimationPathDraftPoint(x, y);
+      } else if (this.dragging && this.dragPointerOffset && this.dragStart) {
         const draggedPoint = this.grid[this.dragging.row][this.dragging.col];
         const targetX = x / Math.max(1, this.W) + this.dragPointerOffset.x;
         const targetY = y / Math.max(1, this.H) + this.dragPointerOffset.y;
         const animationOffset = this.getPointAnimationOffset(
           this.dragging.row,
           this.dragging.col,
-          this.animatePoints ? performance.now() : 0,
+          this.animationTimeMs,
         );
         const dx = x - this.dragStart.x;
         const dy = y - this.dragStart.y;
@@ -90,6 +120,7 @@ export function withInteraction<TBase extends AppConstructor<any>>(Base: TBase) 
       } else {
         const areaControl = this.findAreaFlowControlAt(x, y);
         const hoveredPoint = areaControl ? null : this.findPointAt(x, y);
+        const hoveredPath = areaControl || hoveredPoint ? null : this.findAnimationPathAt(x, y);
         const samePoint =
           (!hoveredPoint && !this.hovered) ||
           (Boolean(hoveredPoint) &&
@@ -103,27 +134,49 @@ export function withInteraction<TBase extends AppConstructor<any>>(Base: TBase) 
             Boolean(this.hoveredAreaFlowControl) &&
             nextHoveredArea?.row === this.hoveredAreaFlowControl?.row &&
             nextHoveredArea?.col === this.hoveredAreaFlowControl?.col);
+        const nextHoveredPathId = hoveredPath?.id ?? null;
+        const samePath = nextHoveredPathId === this.hoveredAnimationPathId;
 
-        if (!samePoint || !sameArea) {
+        if (!samePoint || !sameArea || !samePath) {
           this.hovered = hoveredPoint;
           this.hoveredAreaFlowControl = nextHoveredArea;
-          this.ov.style.cursor = areaControl ? "pointer" : hoveredPoint ? "grab" : "crosshair";
+          this.hoveredAnimationPathId = nextHoveredPathId;
+          this.ov.style.cursor = areaControl
+            ? "pointer"
+            : hoveredPoint
+              ? "grab"
+              : hoveredPath
+                ? "pointer"
+                : "crosshair";
           this.renderOverlay();
         }
       }
     };
 
     _onWindowMouseMove = (e: MouseEvent) => {
-      if (!this.dragging && !this.selectingMode) return;
+      if (!this.dragging && !this.selectingMode && !this.drawingAnimationPathPoint) return;
       this._onOverlayMouseMove(e);
     };
 
     _onWindowMouseUp = () => {
-      if (!this.dragging && !this.selectingMode) return;
+      if (!this.dragging && !this.selectingMode && !this.drawingAnimationPathPoint) return;
       this._onOverlayMouseUp();
     };
 
     _onOverlayMouseUp = () => {
+      if (this.drawingAnimationPathPoint) {
+        this.finishAnimationPathDrawing();
+        this._stopCanvasInteractionTracking();
+        this.ov.style.cursor = this.hoveredAreaFlowControl
+          ? "pointer"
+          : this.hovered
+            ? "grab"
+            : this.hoveredAnimationPathId
+              ? "pointer"
+              : "crosshair";
+        return;
+      }
+
       if (this.selectingMode) {
         if (this.didDrag && this.selectionRect) {
           this._updateSelectionFromRect();
@@ -153,7 +206,15 @@ export function withInteraction<TBase extends AppConstructor<any>>(Base: TBase) 
         this.selectingMode = null;
         this.dragStart = null;
         this._stopCanvasInteractionTracking();
-        this.ov.style.cursor = this.hoveredAreaFlowControl ? "pointer" : this.hovered ? "grab" : "crosshair";
+        this.updateAnimateButtonState();
+        this.updateAnimationToolbarState();
+        this.ov.style.cursor = this.hoveredAreaFlowControl
+          ? "pointer"
+          : this.hovered
+            ? "grab"
+            : this.hoveredAnimationPathId
+              ? "pointer"
+              : "crosshair";
         this.renderOverlay();
         return;
       }
@@ -172,11 +233,15 @@ export function withInteraction<TBase extends AppConstructor<any>>(Base: TBase) 
       this.dragStart = null;
       this.dragPointerOffset = null;
       this._stopCanvasInteractionTracking();
+      this.updateAnimateButtonState();
+      this.updateAnimationToolbarState();
       this.ov.style.cursor = this.hoveredAreaFlowControl
         ? "pointer"
         : this.hovered
           ? "grab"
-          : "crosshair";
+          : this.hoveredAnimationPathId
+            ? "pointer"
+            : "crosshair";
     };
 
     _onOverlayDoubleClick = (e: MouseEvent) => {
@@ -186,6 +251,7 @@ export function withInteraction<TBase extends AppConstructor<any>>(Base: TBase) 
       if (areaControl) return;
       const hit = this.findPointAt(x, y);
       if (hit) {
+        this.selectedAnimationPathId = this.getAnimationPathForPoint(hit.row, hit.col)?.id ?? null;
         if (e.altKey) {
           this.selected = hit;
           this.selectedPoints = [hit];
@@ -200,13 +266,18 @@ export function withInteraction<TBase extends AppConstructor<any>>(Base: TBase) 
         this.selected = null;
         this.selectedPoints = [];
         this.selectedAreaFlowControls = [];
+        this.selectedAnimationPathId = null;
+        this.pathDrawingMode = false;
         this.addPointAt(x, y);
       }
+      this.updateAnimateButtonState();
+      this.updateAnimationToolbarState();
     };
 
     _onOverlayMouseLeave = () => {
       this.hovered = null;
       this.hoveredAreaFlowControl = null;
+      this.hoveredAnimationPathId = null;
       this.ov.style.cursor = "crosshair";
       this.renderOverlay();
     };
@@ -247,16 +318,22 @@ export function withInteraction<TBase extends AppConstructor<any>>(Base: TBase) 
         this.dragging = null;
         this.selectionRect = null;
         this.selectingMode = null;
+        this.pathDrawingMode = false;
+        this.cancelAnimationPathDrawing();
         this._stopCanvasInteractionTracking();
         this.hovered = null;
         this.hoveredAreaFlowControl = null;
+        this.hoveredAnimationPathId = null;
         this.colorPicker.hide();
         this.hideAreaFlowMenu(false);
         this.selected = null;
         this.selectedPoints = [];
         this.selectedAreaFlowControls = [];
+        this.selectedAnimationPathId = null;
         this.ov.style.cursor = "crosshair";
         if (this.fullView) this.toggleFullView();
+        this.updateAnimateButtonState();
+        this.updateAnimationToolbarState();
         this.renderOverlay();
       }
     };
@@ -288,6 +365,10 @@ export function withInteraction<TBase extends AppConstructor<any>>(Base: TBase) 
       if (this.selectingMode === "points") {
         this.selectedPoints = this._findPointsInRect();
         this.selected = this.selectedPoints[0] ?? null;
+        this.selectedAnimationPathId =
+          this.selected && this.selectedPoints.length === 1
+            ? this.getAnimationPathForPoint(this.selected.row, this.selected.col)?.id ?? null
+            : null;
         this.selectedAreaFlowControls = this._findAreaFlowControlsInRect();
         this.activeAreaFlowControl = this.selectedAreaFlowControls[0] ?? null;
       } else if (this.selectingMode === "areas") {
@@ -295,6 +376,7 @@ export function withInteraction<TBase extends AppConstructor<any>>(Base: TBase) 
         this.activeAreaFlowControl = this.selectedAreaFlowControls[0] ?? null;
         this.selected = null;
         this.selectedPoints = [];
+        this.selectedAnimationPathId = null;
       }
     }
 
