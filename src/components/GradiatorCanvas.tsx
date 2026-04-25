@@ -17,6 +17,8 @@ export function GradiatorCanvas() {
   const toolbarRef = useRef<HTMLDivElement>(null);
   const toolbarMoveButtonRef = useRef<HTMLButtonElement>(null);
   const gridButtonRef = useRef<HTMLButtonElement>(null);
+  const pointsButtonRef = useRef<HTMLButtonElement>(null);
+  const gradientTypesButtonRef = useRef<HTMLButtonElement>(null);
   const flowButtonRef = useRef<HTMLButtonElement>(null);
   const aspectButtonRef = useRef<HTMLButtonElement>(null);
   const animateButtonRef = useRef<HTMLButtonElement>(null);
@@ -50,6 +52,8 @@ export function GradiatorCanvas() {
     const toolbar = toolbarRef.current;
     const toolbarMoveButton = toolbarMoveButtonRef.current;
     const gridButton = gridButtonRef.current;
+    const pointsButton = pointsButtonRef.current;
+    const gradientTypesButton = gradientTypesButtonRef.current;
     const flowButton = flowButtonRef.current;
     const aspectButton = aspectButtonRef.current;
     const animateButton = animateButtonRef.current;
@@ -83,6 +87,8 @@ export function GradiatorCanvas() {
       !toolbar ||
       !toolbarMoveButton ||
       !gridButton ||
+      !pointsButton ||
+      !gradientTypesButton ||
       !flowButton ||
       !aspectButton ||
       !animateButton ||
@@ -123,6 +129,8 @@ export function GradiatorCanvas() {
       borderToggleButton,
       uiToggleButton,
       gridButton,
+      pointsButton,
+      gradientTypesButton,
       flowButton,
       aspectButton,
       animateButton,
@@ -159,11 +167,13 @@ export function GradiatorCanvas() {
           moveButtonRef={uiMoveButtonRef}
           uiToggleButtonRef={uiToggleButtonRef}
           borderToggleButtonRef={borderToggleButtonRef}
+          gridButtonRef={gridButtonRef}
+          pointsButtonRef={pointsButtonRef}
+          gradientTypesButtonRef={gradientTypesButtonRef}
         />
         <Toolbar
           toolbarRef={toolbarRef}
           moveButtonRef={toolbarMoveButtonRef}
-          gridButtonRef={gridButtonRef}
           flowButtonRef={flowButtonRef}
           aspectButtonRef={aspectButtonRef}
           animateButtonRef={animateButtonRef}

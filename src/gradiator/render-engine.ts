@@ -30,6 +30,8 @@ type RenderOverlayOptions = {
   height: number;
   grid: GradientPoint[][];
   showGrid: boolean;
+  showPoints: boolean;
+  showGradientTypes: boolean;
   flowLines: FlowGridLines;
   areaFlowControls: AreaFlowControl[];
   activeAreaFlowControl: GridAreaIndex | null;
@@ -102,6 +104,8 @@ export function renderOverlayCanvas({
   height,
   grid,
   showGrid,
+  showPoints,
+  showGradientTypes,
   flowLines,
   areaFlowControls,
   activeAreaFlowControl,
@@ -113,9 +117,13 @@ export function renderOverlayCanvas({
   ctx.clearRect(0, 0, width, height);
   if (showGrid) {
     drawGrid(ctx, width, height, grid, flowLines);
+  }
+  if (showGradientTypes) {
     drawAreaFlowControls(ctx, areaFlowControls, activeAreaFlowControl, hoveredAreaFlowControl);
   }
-  drawHandles(ctx, width, height, grid, selected, dragging, hovered);
+  if (showPoints) {
+    drawHandles(ctx, width, height, grid, selected, dragging, hovered);
+  }
 }
 
 export function buildAreaFlowControls({ width, height, grid, flowModeGrid }: BuildAreaFlowControlsOptions) {
@@ -155,6 +163,15 @@ export function downloadCanvasAsPng(canvas: HTMLCanvasElement, filename = "gradi
   anchor.download = filename;
   anchor.href = canvas.toDataURL("image/png");
   anchor.click();
+}
+
+export function downloadBlob(blob: Blob, filename: string) {
+  const anchor = document.createElement("a");
+  const url = URL.createObjectURL(blob);
+  anchor.download = filename;
+  anchor.href = url;
+  anchor.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 function buildGradientMesh(grid: GradientPoint[][], subdivisions: number, sampleField: SampleField) {

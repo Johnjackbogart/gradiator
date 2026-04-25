@@ -26,7 +26,10 @@ export class ColorPicker {
   readonly hexInput: HTMLInputElement;
   readonly swatch: HTMLDivElement;
 
-  constructor(elements: ColorPickerElements, onChange: (r: number, g: number, b: number) => void) {
+  constructor(
+    elements: ColorPickerElements,
+    onChange: (r: number, g: number, b: number) => void,
+  ) {
     this.onChange = onChange;
     this.panel = elements.panel;
     this.svWrap = elements.svWrap;
