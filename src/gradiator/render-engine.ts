@@ -1,6 +1,13 @@
 import { rgbToHex } from "../utils/color.js";
 import { clamp } from "../utils/math.js";
-import type { AreaFlowControl, FlowGridLines, GradientPoint, GridAreaIndex, GridIndex } from "./types";
+import type {
+  AreaFlowControl,
+  FlowGridLines,
+  GradientPoint,
+  GridAreaIndex,
+  GridIndex,
+  SelectionRect,
+} from "./types";
 
 type SampleField = (u: number, v: number) => GradientPoint;
 
@@ -36,9 +43,12 @@ type RenderOverlayOptions = {
   areaFlowControls: AreaFlowControl[];
   activeAreaFlowControl: GridAreaIndex | null;
   hoveredAreaFlowControl: GridAreaIndex | null;
+  selectedAreaFlowControls: GridAreaIndex[];
   selected: GridIndex | null;
+  selectedPoints: GridIndex[];
   dragging: GridIndex | null;
   hovered: GridIndex | null;
+  selectionRect: SelectionRect | null;
 };
 
 type BuildAreaFlowControlsOptions = {
@@ -110,19 +120,31 @@ export function renderOverlayCanvas({
   areaFlowControls,
   activeAreaFlowControl,
   hoveredAreaFlowControl,
+  selectedAreaFlowControls,
   selected,
+  selectedPoints,
   dragging,
   hovered,
+  selectionRect,
 }: RenderOverlayOptions) {
   ctx.clearRect(0, 0, width, height);
   if (showGrid) {
     drawGrid(ctx, width, height, grid, flowLines);
   }
+  if (selectionRect) {
+    drawSelectionRect(ctx, selectionRect);
+  }
   if (showGradientTypes) {
-    drawAreaFlowControls(ctx, areaFlowControls, activeAreaFlowControl, hoveredAreaFlowControl);
+    drawAreaFlowControls(
+      ctx,
+      areaFlowControls,
+      activeAreaFlowControl,
+      hoveredAreaFlowControl,
+      selectedAreaFlowControls,
+    );
   }
   if (showPoints) {
-    drawHandles(ctx, width, height, grid, selected, dragging, hovered);
+    drawHandles(ctx, width, height, grid, selected, selectedPoints, dragging, hovered);
   }
 }
 
@@ -284,6 +306,7 @@ function drawHandles(
   height: number,
   grid: GradientPoint[][],
   selected: GridIndex | null,
+  selectedPoints: GridIndex[],
   dragging: GridIndex | null,
   hovered: GridIndex | null,
 ) {
@@ -295,7 +318,8 @@ function drawHandles(
       const point = grid[row][col];
       const x = point.x * width;
       const y = point.y * height;
-      const isSelected = selected && selected.row === row && selected.col === col;
+      const isSelected =
+        hasGridIndex(selectedPoints, row, col) || (selected && selected.row === row && selected.col === col);
       const isDragging = dragging && dragging.row === row && dragging.col === col;
       const isHovered = hovered && hovered.row === row && hovered.col === col;
       const active = isSelected || isDragging || isHovered;
@@ -328,6 +352,7 @@ function drawAreaFlowControls(
   controls: AreaFlowControl[],
   activeAreaFlowControl: GridAreaIndex | null,
   hoveredAreaFlowControl: GridAreaIndex | null,
+  selectedAreaFlowControls: GridAreaIndex[],
 ) {
   ctx.save();
   ctx.textAlign = "center";
@@ -338,20 +363,21 @@ function drawAreaFlowControls(
       Boolean(activeAreaFlowControl) &&
       activeAreaFlowControl?.row === control.row &&
       activeAreaFlowControl?.col === control.col;
+    const isSelected = hasGridIndex(selectedAreaFlowControls, control.row, control.col);
     const isHovered =
       Boolean(hoveredAreaFlowControl) &&
       hoveredAreaFlowControl?.row === control.row &&
       hoveredAreaFlowControl?.col === control.col;
-    const outerRadius = control.radius + (isActive ? 4 : 2);
+    const outerRadius = control.radius + (isActive || isSelected ? 4 : 2);
 
     ctx.beginPath();
     ctx.arc(control.x, control.y, outerRadius, 0, Math.PI * 2);
-    ctx.fillStyle = isActive ? "rgba(5, 5, 5, 0.92)" : "rgba(8, 8, 8, 0.74)";
+    ctx.fillStyle = isActive || isSelected ? "rgba(5, 5, 5, 0.92)" : "rgba(8, 8, 8, 0.74)";
     ctx.fill();
 
     ctx.beginPath();
     ctx.arc(control.x, control.y, outerRadius, 0, Math.PI * 2);
-    ctx.strokeStyle = isActive
+    ctx.strokeStyle = isActive || isSelected
       ? "rgba(255, 255, 255, 0.94)"
       : isHovered
         ? "rgba(255, 255, 255, 0.6)"
@@ -365,6 +391,26 @@ function drawAreaFlowControls(
   }
 
   ctx.restore();
+}
+
+function drawSelectionRect(ctx: CanvasRenderingContext2D, rect: SelectionRect) {
+  const left = Math.min(rect.startX, rect.endX);
+  const top = Math.min(rect.startY, rect.endY);
+  const width = Math.abs(rect.endX - rect.startX);
+  const height = Math.abs(rect.endY - rect.startY);
+
+  ctx.save();
+  ctx.fillStyle = "rgba(0, 0, 0, 0.34)";
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.72)";
+  ctx.lineWidth = 1.25;
+  ctx.setLineDash([6, 4]);
+  ctx.fillRect(left, top, width, height);
+  ctx.strokeRect(left, top, width, height);
+  ctx.restore();
+}
+
+function hasGridIndex(indices: GridIndex[], row: number, col: number) {
+  return indices.some((index) => index.row === row && index.col === col);
 }
 
 function drawFlowPath(ctx: CanvasRenderingContext2D, line: { x: number; y: number }[], width: number, height: number) {

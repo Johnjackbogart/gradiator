@@ -68,9 +68,12 @@ export function withRendering<TBase extends AppConstructor<any>>(Base: TBase) {
         areaFlowControls: this.areaFlowControls,
         activeAreaFlowControl: this.activeAreaFlowControl,
         hoveredAreaFlowControl: this.hoveredAreaFlowControl,
+        selectedAreaFlowControls: this.selectedAreaFlowControls,
         selected: this.selected,
+        selectedPoints: this.selectedPoints,
         dragging: this.dragging,
         hovered: this.hovered,
+        selectionRect: this.selectionRect,
       });
     }
 
@@ -144,7 +147,14 @@ export function withRendering<TBase extends AppConstructor<any>>(Base: TBase) {
 
     setAreaFlowMode(row: number, col: number, index: number) {
       if (!this.flowModeGrid[row]?.length || this.flowModeGrid[row][col] === undefined) return;
-      this.flowModeGrid[row][col] = clamp(index, 0, this.flowModes.length - 1);
+      const safeIndex = clamp(index, 0, this.flowModes.length - 1);
+      const areas = this.selectedAreaFlowControls.some((area) => area.row === row && area.col === col)
+        ? this.selectedAreaFlowControls
+        : [{ row, col }];
+      for (const area of areas) {
+        if (!this.flowModeGrid[area.row]?.length || this.flowModeGrid[area.row][area.col] === undefined) continue;
+        this.flowModeGrid[area.row][area.col] = safeIndex;
+      }
       this.updateAreaFlowMenuButtons();
     }
 
@@ -221,8 +231,21 @@ export function withRendering<TBase extends AppConstructor<any>>(Base: TBase) {
 
     openPickerFor(rc) {
       this.colorMode = "point";
+      if (!this.selectedPoints.some((point) => point.row === rc.row && point.col === rc.col)) {
+        this.selectedPoints = [rc];
+      }
       const p = this.getDisplayPoint(rc.row, rc.col);
       const basePoint = this.grid[rc.row][rc.col];
+      const rect = this.ov.getBoundingClientRect();
+      this.colorPicker.show(p.x * this.W + rect.left, p.y * this.H + rect.top, basePoint.r, basePoint.g, basePoint.b);
+    }
+
+    openPickerForPointSelection(points = this.selectedPoints) {
+      const firstPoint = points[0];
+      if (!firstPoint) return;
+      this.colorMode = "point";
+      const p = this.getDisplayPoint(firstPoint.row, firstPoint.col);
+      const basePoint = this.grid[firstPoint.row][firstPoint.col];
       const rect = this.ov.getBoundingClientRect();
       this.colorPicker.show(p.x * this.W + rect.left, p.y * this.H + rect.top, basePoint.r, basePoint.g, basePoint.b);
     }

@@ -16,6 +16,13 @@ export type GridAreaIndex = {
   col: number;
 };
 
+export type SelectionRect = {
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
+};
+
 export type Point2D = {
   x: number;
   y: number;

@@ -15,19 +15,28 @@ export function withInteraction<TBase extends AppConstructor<any>>(Base: TBase) 
       this._cancelPickerTimer();
       const { x, y } = this.getMousePos(e);
       const areaControl = this.findAreaFlowControlAt(x, y);
+      this.didDrag = false;
+      this.dragStart = { x, y };
+      this.selectionRect = null;
       if (areaControl) {
         this.colorPicker.hide();
-        this.showAreaFlowMenu(areaControl);
+        this.selected = null;
+        this.selectedPoints = [];
+        this.activeAreaFlowControl = { row: areaControl.row, col: areaControl.col };
+        this.selectedAreaFlowControls = [{ row: areaControl.row, col: areaControl.col }];
+        this.selectingMode = "areas";
         this.ov.style.cursor = "pointer";
+        this.renderOverlay();
         return;
       }
 
       this.hideAreaFlowMenu(false);
       const hit = this.findPointAt(x, y);
-      this.didDrag = false;
       if (hit) {
         this.dragging = hit;
         this.selected = hit;
+        this.selectedPoints = [hit];
+        this.selectedAreaFlowControls = [];
         this.dragStart = { x, y };
         this.dragPointerOffset = {
           x: this.getDisplayPoint(hit.row, hit.col).x - x / Math.max(1, this.W),
@@ -36,6 +45,9 @@ export function withInteraction<TBase extends AppConstructor<any>>(Base: TBase) 
         this.ov.style.cursor = "grabbing";
       } else {
         this.selected = null;
+        this.selectedPoints = [];
+        this.selectedAreaFlowControls = [];
+        this.selectingMode = this.showPoints ? "points" : this.showGradientTypes ? "areas" : null;
         this.colorPicker.hide();
       }
       this.renderOverlay();
@@ -58,6 +70,20 @@ export function withInteraction<TBase extends AppConstructor<any>>(Base: TBase) 
         draggedPoint.x = clamp(targetX - animationOffset.x, 0, 1);
         draggedPoint.y = clamp(targetY - animationOffset.y, 0, 1);
         this.render(true, false);
+      } else if (this.selectingMode && this.dragStart) {
+        const dx = x - this.dragStart.x;
+        const dy = y - this.dragStart.y;
+        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) this.didDrag = true;
+        if (this.didDrag) {
+          this.selectionRect = {
+            startX: this.dragStart.x,
+            startY: this.dragStart.y,
+            endX: x,
+            endY: y,
+          };
+          this._updateSelectionFromRect();
+          this.renderOverlay();
+        }
       } else {
         const areaControl = this.findAreaFlowControlAt(x, y);
         const hoveredPoint = areaControl ? null : this.findPointAt(x, y);
@@ -85,6 +111,38 @@ export function withInteraction<TBase extends AppConstructor<any>>(Base: TBase) 
     };
 
     _onOverlayMouseUp = () => {
+      if (this.selectingMode) {
+        if (this.didDrag && this.selectionRect) {
+          this._updateSelectionFromRect();
+          if (this.selectingMode === "areas" && this.selectedAreaFlowControls.length) {
+            const firstArea = this.selectedAreaFlowControls[0];
+            const control = this.areaFlowControls.find(
+              (area) => area.row === firstArea.row && area.col === firstArea.col,
+            );
+            if (control) this.showAreaFlowMenu(control);
+          } else if (this.selectingMode === "points" && this.selectedPoints.length) {
+            this.hideAreaFlowMenu(false);
+            this.openPickerForPointSelection();
+          } else {
+            this.hideAreaFlowMenu(false);
+            this.colorPicker.hide();
+          }
+        } else if (this.selectingMode === "areas" && this.activeAreaFlowControl) {
+          const control = this.areaFlowControls.find(
+            (area) =>
+              area.row === this.activeAreaFlowControl?.row && area.col === this.activeAreaFlowControl?.col,
+          );
+          if (control) this.showAreaFlowMenu(control);
+        }
+
+        this.selectionRect = null;
+        this.selectingMode = null;
+        this.dragStart = null;
+        this.ov.style.cursor = this.hoveredAreaFlowControl ? "pointer" : this.hovered ? "grab" : "crosshair";
+        this.renderOverlay();
+        return;
+      }
+
       if (!this.dragging) return;
       const rc = this.dragging;
       if (!this.didDrag) {
@@ -114,6 +172,8 @@ export function withInteraction<TBase extends AppConstructor<any>>(Base: TBase) 
       if (hit) {
         if (e.altKey) {
           this.selected = hit;
+          this.selectedPoints = [hit];
+          this.selectedAreaFlowControls = [];
           this.openPickerFor(hit);
           this.renderOverlay();
         } else {
@@ -122,6 +182,8 @@ export function withInteraction<TBase extends AppConstructor<any>>(Base: TBase) 
       } else {
         this.colorPicker.hide();
         this.selected = null;
+        this.selectedPoints = [];
+        this.selectedAreaFlowControls = [];
         this.addPointAt(x, y);
       }
     };
@@ -131,7 +193,15 @@ export function withInteraction<TBase extends AppConstructor<any>>(Base: TBase) 
         this.dragging = null;
         this.dragStart = null;
         this.dragPointerOffset = null;
+        this.selectionRect = null;
+        this.selectingMode = null;
         this.render(false);
+      }
+      if (this.selectingMode) {
+        this.selectionRect = null;
+        this.selectingMode = null;
+        this.dragStart = null;
+        this.renderOverlay();
       }
       this.hovered = null;
       this.hoveredAreaFlowControl = null;
@@ -161,6 +231,7 @@ export function withInteraction<TBase extends AppConstructor<any>>(Base: TBase) 
       const target = e.target;
       if (target instanceof Node && this.areaFlowMenu.contains(target)) return;
       if (target === this.ov) return;
+      this.selectedAreaFlowControls = [];
       this.hideAreaFlowMenu();
     };
 
@@ -172,11 +243,15 @@ export function withInteraction<TBase extends AppConstructor<any>>(Base: TBase) 
         this.dragStart = null;
         this.dragPointerOffset = null;
         this.dragging = null;
+        this.selectionRect = null;
+        this.selectingMode = null;
         this.hovered = null;
         this.hoveredAreaFlowControl = null;
         this.colorPicker.hide();
         this.hideAreaFlowMenu(false);
         this.selected = null;
+        this.selectedPoints = [];
+        this.selectedAreaFlowControls = [];
         this.ov.style.cursor = "crosshair";
         if (this.fullView) this.toggleFullView();
         this.renderOverlay();
@@ -193,6 +268,62 @@ export function withInteraction<TBase extends AppConstructor<any>>(Base: TBase) 
       this.areaFlowMenuOptions.addEventListener("click", this._onAreaFlowMenuClick);
       document.addEventListener("mousedown", this._onDocumentMouseDown);
       document.addEventListener("keydown", this._onDocumentKeyDown);
+    }
+
+    _updateSelectionFromRect() {
+      if (!this.selectionRect) return;
+      if (this.selectingMode === "points") {
+        this.selectedPoints = this._findPointsInRect();
+        this.selected = this.selectedPoints[0] ?? null;
+        this.selectedAreaFlowControls = [];
+      } else if (this.selectingMode === "areas") {
+        this.selectedAreaFlowControls = this._findAreaFlowControlsInRect();
+        this.activeAreaFlowControl = this.selectedAreaFlowControls[0] ?? null;
+        this.selected = null;
+        this.selectedPoints = [];
+      }
+    }
+
+    _findPointsInRect() {
+      if (!this.selectionRect || !this.showPoints) return [];
+      const rect = this._normalizedSelectionRect();
+      const selected = [];
+      const grid = this.getDisplayGrid();
+      for (let row = 0; row < grid.length; row++) {
+        for (let col = 0; col < (grid[row]?.length ?? 0); col++) {
+          const point = grid[row][col];
+          const x = point.x * this.W;
+          const y = point.y * this.H;
+          if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+            selected.push({ row, col });
+          }
+        }
+      }
+      return selected;
+    }
+
+    _findAreaFlowControlsInRect() {
+      if (!this.selectionRect || !this.showGradientTypes) return [];
+      const rect = this._normalizedSelectionRect();
+      return this.areaFlowControls
+        .filter(
+          (control) =>
+            control.x >= rect.left &&
+            control.x <= rect.right &&
+            control.y >= rect.top &&
+            control.y <= rect.bottom,
+        )
+        .map((control) => ({ row: control.row, col: control.col }));
+    }
+
+    _normalizedSelectionRect() {
+      const rect = this.selectionRect;
+      return {
+        left: Math.min(rect.startX, rect.endX),
+        right: Math.max(rect.startX, rect.endX),
+        top: Math.min(rect.startY, rect.endY),
+        bottom: Math.max(rect.startY, rect.endY),
+      };
     }
   };
 }

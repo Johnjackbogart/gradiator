@@ -7,12 +7,6 @@ export function createFlowModeGrid(rows: number, cols: number, modeIndex: number
   return Array.from({ length: areaRows }, () => Array.from({ length: areaCols }, () => modeIndex));
 }
 
-export function fillFlowModeGrid(flowModeGrid: number[][], modeIndex: number) {
-  for (let row = 0; row < flowModeGrid.length; row++) {
-    flowModeGrid[row].fill(modeIndex);
-  }
-}
-
 export function normalizeFlowModeGrid(
   flowModeGrid: number[][] | null | undefined,
   rows: number,

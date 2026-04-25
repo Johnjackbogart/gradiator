@@ -97,10 +97,13 @@ export function withControls<TBase extends AppConstructor<any>>(Base: TBase) {
         this._cancelPickerTimer();
         this.colorPicker.hide();
         this.selected = null;
+        this.selectedPoints = [];
         this.dragging = null;
         this.dragStart = null;
         this.dragPointerOffset = null;
         this.hovered = null;
+        this.selectionRect = null;
+        this.selectingMode = null;
       }
       this.pointsButton.classList.toggle("active", this.showPoints);
       this.pointsButton.setAttribute("aria-pressed", String(this.showPoints));
@@ -113,6 +116,7 @@ export function withControls<TBase extends AppConstructor<any>>(Base: TBase) {
       this.showGradientTypes = Boolean(visible);
       if (!this.showGradientTypes) {
         this.hoveredAreaFlowControl = null;
+        this.selectedAreaFlowControls = [];
         this.hideAreaFlowMenu(false);
       }
       this.gradientTypesButton.classList.toggle("active", this.showGradientTypes);
@@ -276,6 +280,8 @@ export function withControls<TBase extends AppConstructor<any>>(Base: TBase) {
     randomizeColors() {
       this.colorPicker.hide();
       this.selected = null;
+      this.selectedPoints = [];
+      this.selectedAreaFlowControls = [];
       const base = Math.random() * 360;
       const spread = 80 + Math.random() * 40;
       const TL = hslToRgb(base % 360, 75 + Math.random() * 20, 38 + Math.random() * 14);

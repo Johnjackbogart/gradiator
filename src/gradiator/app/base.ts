@@ -16,6 +16,7 @@ import type {
   PanelDragState,
   Point2D,
   PreviewDragState,
+  SelectionRect,
 } from "../types";
 import { createProgram } from "../../utils/webgl.js";
 
@@ -72,10 +73,14 @@ export class GradiatorAppBase {
   displayGrid: GradientPoint[][] = [];
   flowModeGrid: number[][] = [];
   selected: GridIndex | null = null;
+  selectedPoints: GridIndex[] = [];
   dragging: GridIndex | null = null;
   hovered: GridIndex | null = null;
   activeAreaFlowControl: GridAreaIndex | null = null;
   hoveredAreaFlowControl: GridAreaIndex | null = null;
+  selectedAreaFlowControls: GridAreaIndex[] = [];
+  selectionRect: SelectionRect | null = null;
+  selectingMode: "points" | "areas" | null = null;
   colorMode: "point" | "all" = "point";
   borderHidden = false;
   uiHidden = false;
@@ -159,10 +164,14 @@ export class GradiatorAppBase {
           }
           (this as any).render();
         } else if (this.selected) {
-          const p = this.grid[this.selected.row][this.selected.col];
-          p.r = r;
-          p.g = g;
-          p.b = b;
+          const points = this.selectedPoints.length ? this.selectedPoints : [this.selected];
+          for (const selectedPoint of points) {
+            const p = this.grid[selectedPoint.row]?.[selectedPoint.col];
+            if (!p) continue;
+            p.r = r;
+            p.g = g;
+            p.b = b;
+          }
           (this as any).render();
         }
       },

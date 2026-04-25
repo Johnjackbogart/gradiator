@@ -125,9 +125,13 @@ export function withState<TBase extends AppConstructor<any>>(Base: TBase) {
       );
       this.syncGridDimensions();
       this.selected = null;
+      this.selectedPoints = [];
       this.dragging = null;
       this.hovered = null;
+      this.selectedAreaFlowControls = [];
       this.hoveredAreaFlowControl = null;
+      this.selectionRect = null;
+      this.selectingMode = null;
       this.colorPicker.hide();
       this.hideAreaFlowMenu(false);
       this.render();
@@ -152,6 +156,8 @@ export function withState<TBase extends AppConstructor<any>>(Base: TBase) {
       );
       this.syncGridDimensions();
       this.selected = insertedPoint.insertedPoint;
+      this.selectedPoints = [insertedPoint.insertedPoint];
+      this.selectedAreaFlowControls = [];
       this.hideAreaFlowMenu(false);
       this.render();
     }
