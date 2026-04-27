@@ -17,6 +17,7 @@ export function GradiatorCanvas() {
   const uiToggleButtonRef = useRef<HTMLButtonElement>(null);
   const borderToggleButtonRef = useRef<HTMLButtonElement>(null);
   const previewHideButtonRef = useRef<HTMLButtonElement>(null);
+  const titleHideButtonRef = useRef<HTMLButtonElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
   const toolbarMoveButtonRef = useRef<HTMLButtonElement>(null);
   const gridButtonRef = useRef<HTMLButtonElement>(null);
@@ -61,6 +62,7 @@ export function GradiatorCanvas() {
     const uiToggleButton = uiToggleButtonRef.current;
     const borderToggleButton = borderToggleButtonRef.current;
     const previewHideButton = previewHideButtonRef.current;
+    const titleHideButton = titleHideButtonRef.current;
     const toolbar = toolbarRef.current;
     const toolbarMoveButton = toolbarMoveButtonRef.current;
     const gridButton = gridButtonRef.current;
@@ -105,6 +107,7 @@ export function GradiatorCanvas() {
       !uiToggleButton ||
       !borderToggleButton ||
       !previewHideButton ||
+      !titleHideButton ||
       !toolbar ||
       !toolbarMoveButton ||
       !gridButton ||
@@ -158,6 +161,7 @@ export function GradiatorCanvas() {
       borderToggleButton,
       uiToggleButton,
       previewHideButton,
+      titleHideButton,
       gridButton,
       pointsButton,
       gradientTypesButton,
@@ -216,6 +220,7 @@ export function GradiatorCanvas() {
             uiToggleButtonRef={uiToggleButtonRef}
             borderToggleButtonRef={borderToggleButtonRef}
             previewHideButtonRef={previewHideButtonRef}
+            titleHideButtonRef={titleHideButtonRef}
             gridButtonRef={gridButtonRef}
             pointsButtonRef={pointsButtonRef}
             gradientTypesButtonRef={gradientTypesButtonRef}

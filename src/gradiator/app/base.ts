@@ -38,6 +38,7 @@ export class GradiatorAppBase {
   readonly borderToggleButton: HTMLButtonElement;
   readonly uiToggleButton: HTMLButtonElement;
   readonly previewHideButton: HTMLButtonElement;
+  readonly titleHideButton: HTMLButtonElement;
   readonly gridButton: HTMLButtonElement;
   readonly pointsButton: HTMLButtonElement;
   readonly gradientTypesButton: HTMLButtonElement;
@@ -103,6 +104,7 @@ export class GradiatorAppBase {
   borderHidden = false;
   uiHidden = false;
   previewHidden = false;
+  titleHidden = false;
   panelDragging: PanelDragState | null = null;
   previewDragging: PreviewDragState | null = null;
   previewDockedStyle: DockedStyle | null = null;
@@ -144,6 +146,7 @@ export class GradiatorAppBase {
     this.borderToggleButton = elements.borderToggleButton;
     this.uiToggleButton = elements.uiToggleButton;
     this.previewHideButton = elements.previewHideButton;
+    this.titleHideButton = elements.titleHideButton;
     this.gridButton = elements.gridButton;
     this.pointsButton = elements.pointsButton;
     this.gradientTypesButton = elements.gradientTypesButton;

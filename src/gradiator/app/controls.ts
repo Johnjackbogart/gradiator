@@ -37,6 +37,10 @@ export function withControls<TBase extends AppConstructor<any>>(Base: TBase) {
       this.togglePreview();
     };
 
+    _onTitleHideClick = () => {
+      this.toggleTitle();
+    };
+
     _onMobileToolsToggleClick = () => {
       this.setMobileToolsHidden(!document.body.classList.contains("mobile-tools-hidden"));
     };
@@ -135,6 +139,7 @@ export function withControls<TBase extends AppConstructor<any>>(Base: TBase) {
       this.borderToggleButton.addEventListener("click", this._onBorderToggleClick);
       this.uiToggleButton.addEventListener("click", this._onUiToggleClick);
       this.previewHideButton.addEventListener("click", this._onPreviewHideClick);
+      this.titleHideButton.addEventListener("click", this._onTitleHideClick);
       this.mobileToolsToggleButton.addEventListener("click", this._onMobileToolsToggleClick);
       this.aspectButton.addEventListener("click", this._onAspectButtonClick);
       this.animateButton.addEventListener("click", this._onAnimateButtonClick);
@@ -246,6 +251,18 @@ export function withControls<TBase extends AppConstructor<any>>(Base: TBase) {
 
     togglePreview() {
       this.setPreviewHidden(!this.previewHidden);
+    }
+
+    setTitleHidden(hidden) {
+      this.titleHidden = Boolean(hidden);
+      document.body.classList.toggle("title-hidden", this.titleHidden);
+      this.titleHideButton.classList.toggle("active", this.titleHidden);
+      this.titleHideButton.setAttribute("aria-pressed", String(this.titleHidden));
+      this.titleHideButton.textContent = this.titleHidden ? "Show Title" : "Hide Title";
+    }
+
+    toggleTitle() {
+      this.setTitleHidden(!this.titleHidden);
     }
 
     toggleFullView() {

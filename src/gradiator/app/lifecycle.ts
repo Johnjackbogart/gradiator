@@ -31,6 +31,7 @@ export function withLifecycle<TBase extends AppConstructor<any>>(Base: TBase) {
       this.borderToggleButton.removeEventListener("click", this._onBorderToggleClick);
       this.uiToggleButton.removeEventListener("click", this._onUiToggleClick);
       this.previewHideButton.removeEventListener("click", this._onPreviewHideClick);
+      this.titleHideButton.removeEventListener("click", this._onTitleHideClick);
       this.mobileToolsToggleButton.removeEventListener("click", this._onMobileToolsToggleClick);
       this.aspectButton.removeEventListener("click", this._onAspectButtonClick);
       this.animateButton.removeEventListener("click", this._onAnimateButtonClick);
@@ -60,7 +61,7 @@ export function withLifecycle<TBase extends AppConstructor<any>>(Base: TBase) {
       this.hovered = null;
       this.hoveredAreaFlowControl = null;
       this.ov.style.cursor = "crosshair";
-      document.body.classList.remove("ui-hidden", "border-hidden", "preview-full", "mobile-tools-hidden", "preview-hidden");
+      document.body.classList.remove("ui-hidden", "border-hidden", "preview-full", "mobile-tools-hidden", "preview-hidden", "title-hidden");
     }
   };
 }

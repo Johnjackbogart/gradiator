@@ -708,6 +708,10 @@ body.preview-hidden #preview-frame {
   display: none;
 }
 
+body.title-hidden #brand-mark {
+  display: none;
+}
+
 #cp-panel {
   position: fixed;
   z-index: 1000;

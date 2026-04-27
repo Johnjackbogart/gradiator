@@ -134,6 +134,7 @@ export type GradiatorAppElements = {
   borderToggleButton: HTMLButtonElement;
   uiToggleButton: HTMLButtonElement;
   previewHideButton: HTMLButtonElement;
+  titleHideButton: HTMLButtonElement;
   gridButton: HTMLButtonElement;
   pointsButton: HTMLButtonElement;
   gradientTypesButton: HTMLButtonElement;
